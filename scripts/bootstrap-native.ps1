@@ -71,15 +71,6 @@ if (-not (Test-Path $wrapper)) {
       $strings = [regex]::Replace($strings, '<string name="app_name">.*?</string>', $replacement)
       Write-Utf8NoBom $stringsPath $strings
     }
-    $mainKt = Get-ChildItem (Join-Path $root 'android/app/src/main/java') -Filter MainApplication.kt -Recurse | Select-Object -First 1
-    if ($mainKt) {
-      $kt = Get-Content $mainKt.FullName -Raw -Encoding UTF8
-      if ($kt -notmatch 'I18nUtil') {
-        $kt = $kt -replace 'import android.app.Application', "import android.app.Application`nimport com.facebook.react.modules.i18nmanager.I18nUtil"
-        $kt = $kt -replace 'super.onCreate\(\)', "super.onCreate()`n    I18nUtil.getInstance().allowRTL(applicationContext, true)`n    I18nUtil.getInstance().forceRTL(applicationContext, true)"
-        Write-Utf8NoBom $mainKt.FullName $kt
-      }
-    }
     # Native template defines the toolchain pairings; keep our additional
     # project libraries and scripts untouched.
     $templateManifest = Get-Content (Join-Path $template 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -96,6 +87,10 @@ if (-not (Test-Path $wrapper)) {
     if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
   }
 }
+
+# The CLI template can add MainActivity/MainApplication beside the checked-in
+# entrypoints. Remove generated duplicates even on a repeated bootstrap run.
+& (Join-Path $root 'scripts/repair-native-sources.ps1')
 
 npm install
 Assert-LastExit 'npm install'
