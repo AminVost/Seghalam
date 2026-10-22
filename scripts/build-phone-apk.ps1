@@ -45,6 +45,12 @@ if (-not (Test-Path $wrapper) -or -not (Test-Path $installed)) {
   Check-Exit 'React Native bootstrap'
 }
 
+# A previous bootstrap can leave node_modules and the Gradle wrapper in place
+# even if TypeScript validation failed. Never skip validation on subsequent runs.
+Write-Host 'Checking React Native TypeScript before building APK...'
+& npm run typecheck
+Check-Exit 'React Native TypeScript typecheck'
+
 # The original release signing rules are never committed or permanently changed.
 # A non-debuggable Release variant bundles JS into the APK, so Metro is NOT needed.
 $gradleFile = Join-Path $root 'android/app/build.gradle'
