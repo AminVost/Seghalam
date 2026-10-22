@@ -15,7 +15,9 @@ import {formatJalali,toIsoDate} from './src/domain/jalali';
 import type {Category,PantryItem,Quantity,Recipe,Unit,StoragePlace} from './src/domain/types';
 import * as db from './src/storage/db';
 import {Btn,Loading,Panel,Txt} from './src/ui/atoms';
-import {palette as c} from './src/ui/theme';
+import type {Palette} from './src/ui/theme';
+import {ThemeProvider,useTheme} from './src/ui/ThemeProvider';
+import {CoachTour} from './src/ui/CoachTour';
 
 type Tab='home'|'pantry'|'recipes'|'plan';
 type Page='tabs'|'detail'|'cook'|'shopping'|'favorites'|'history'|'settings';
@@ -23,6 +25,8 @@ const categoryTitle:Record<Category,string>={iranian:'ایرانی و خانگی
 const fmt=(v:number)=>new Intl.NumberFormat('fa-IR').format(v);
 const today=()=>localIsoDay();
 function SingleRecipe({recipe,onPress,favorite,status,subtitle}: {recipe:Recipe;onPress:()=>void;favorite?:boolean;status?:string;subtitle?:string}){
+  const {palette:c}=useTheme();
+  const s=useMemo(()=>createStyles(c),[c]);
   const total=recipe.prepMinutes+recipe.cookMinutes;
   const category=recipe.categories[0]??'iranian';
   const emoji:Record<Category,string>={iranian:'🍲',light:'🥗',snack:'🥣',fastfood:'🥙'};
@@ -30,7 +34,7 @@ function SingleRecipe({recipe,onPress,favorite,status,subtitle}: {recipe:Recipe;
   const uncertainty=!!status&&(/نامشخص|نیازمند|نامناسب|کم داری/.test(status));
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${recipe.title}، ${total} دقیقه${status?`، ${status}`:''}`}
     style={({pressed})=>[s.recipeCard,pressed&&{opacity:0.78,transform:[{scale:0.99}]}]}>
-    <View style={[s.dishIcon,{backgroundColor:tint[category]}]}><Txt style={{fontSize:28,lineHeight:38}}>{emoji[category]}</Txt></View>
+    <View style={[s.dishIcon,{backgroundColor:tint[category]}]}><Txt style={{fontSize:25,lineHeight:47,includeFontPadding:true,textAlign:'center'}}>{emoji[category]}</Txt></View>
     <View style={{flex:1,gap:5}}>
       <Txt weight style={{color:c.dark,fontSize:15}}>{recipe.title}{favorite?'  ♥':''}</Txt>
       <Txt muted style={{fontSize:12}}>{fmt(total)} دقیقه  •  {fmt(recipe.servings)} نفر  •  {categoryTitle[category]}</Txt>
@@ -41,8 +45,14 @@ function SingleRecipe({recipe,onPress,favorite,status,subtitle}: {recipe:Recipe;
     <View style={s.cardArrow}><Txt weight style={{color:c.green}}>‹</Txt></View>
   </Pressable>;
 }
-export default function App(){return <SafeAreaProvider><AppBody/></SafeAreaProvider>;}
+export default function App(){return <SafeAreaProvider><ThemeProvider><AppBody/></ThemeProvider></SafeAreaProvider>;}
 function AppBody(){
+  const {palette:c,mode,isDark,setMode}=useTheme();
+  const s=useMemo(()=>createStyles(c),[c]);
+  const [tourVisible,setTourVisible]=useState(false);
+  const [bulkPantry,setBulkPantry]=useState(false),[bulkShopping,setBulkShopping]=useState(false);
+  const [selectedPantryIds,setSelectedPantryIds]=useState<string[]>([]);
+  const [selectedShoppingIds,setSelectedShoppingIds]=useState<string[]>([]);
   const [ready,setReady]=useState(false),[fatal,setFatal]=useState(''),[retryIndex,setRetryIndex]=useState(0);
   const [catalog,setCatalog]=useState<Recipe[]>([]);
   const [onboardingVisible,setOnboardingVisible]=useState(false);
@@ -76,6 +86,8 @@ function AppBody(){
       try {
         setFatal('');
         await db.initializeDatabase();
+        const savedTheme=await db.getThemePreference();
+        if(alive)setMode(savedTheme);
         phase='Reading the offline recipe catalog';
         const localRecipes=await db.getCatalog();
         setCatalog(localRecipes);
@@ -111,6 +123,9 @@ function AppBody(){
   const run=async(fn:()=>Promise<void>)=>{
     if(runningRef.current)return;runningRef.current=true;setBusy(true);try{await fn();await refresh();}catch(e){Alert.alert('خطا',String(e instanceof Error?e.message:e));}finally{runningRef.current=false;setBusy(false);}
   };
+  const saveTheme=(value:db.UiThemeMode)=>void run(async()=>{await db.saveThemePreference(value);setMode(value);});
+  const openTour=()=>{setPage('tabs');setTab('home');setTourVisible(true);};
+  const tour=()=> <CoachTour visible={tourVisible} onClose={()=>setTourVisible(false)} onNavigate={target=>{setPage('tabs');setTab(target);}}/>;
   const intent=useMemo(()=>parseIntent(query),[query]);
   const effectivePantry=useMemo(()=>{
     const extra=intent.includedIds.filter(id=>!pantry.some(p=>p.ingredientId===id))
@@ -202,11 +217,11 @@ function AppBody(){
   };
   const menu=()=> <View style={s.tabs} accessibilityRole="tablist">{([['home','خانه','⌂'],['pantry','یخچال من','▣'],['recipes','دستورها','☷'],['plan','برنامه من','▤']] as [Tab,string,string][]).map(([t,label,ico])=><Pressable key={t} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{selected:t===tab}}
         style={[s.tab,t===tab&&s.tabActive]} onPress={()=>{Keyboard.dismiss();setTab(t);setPage('tabs');}}>
-        <Txt style={{fontSize:19,color:t===tab?c.dark:c.secondary}}>{ico}</Txt><Txt weight={t===tab} style={{fontSize:11,color:t===tab?c.dark:c.secondary}}>{label}</Txt></Pressable>)}</View>;
+        <Txt style={{fontSize:18,lineHeight:30,includeFontPadding:true,color:t===tab?c.dark:c.secondary}}>{ico}</Txt><Txt weight={t===tab} style={{fontSize:11,color:t===tab?c.dark:c.secondary}}>{label}</Txt></Pressable>)}</View>;
   const header=()=> <View style={s.header}>
-    <View style={{flexDirection:'row-reverse',alignItems:'center',gap:12,maxWidth:720,width:'100%',alignSelf:'center'}}>
-      <Image source={require('./assets/branding/brand-mark.png')} style={{width:42,height:42,borderRadius:12}} />
-      <View style={{flex:1,gap:0}}><Txt weight style={{color:c.dark,fontSize:18}}>سه‌قلم غذا</Txt>
+    <View style={{flexDirection:'row',alignItems:'center',gap:12,maxWidth:720,width:'100%',alignSelf:'center'}}>
+      <Image source={require('./assets/branding/brand-mark.png')} resizeMode="contain" style={{width:42,height:42}} />
+      <View style={{flex:1,gap:0}}><Txt weight style={{color:c.dark,fontSize:16}}>سه‌قلم غذا</Txt>
         <Txt muted style={{fontSize:11}}>ببین چی داری، بگو چی بپزی!</Txt></View>
       {page!=='tabs'?<Pressable accessibilityRole="button" accessibilityLabel="بازگشت" onPress={()=>{setPage(page==='cook'?'detail':'tabs');Keyboard.dismiss();}}
         style={s.backButton}><Txt weight style={{color:c.dark,fontSize:14}}>بازگشت  ‹</Txt></Pressable>:null}
@@ -226,19 +241,19 @@ function AppBody(){
   if(!ready)return <SafeAreaView style={s.base}><Loading/></SafeAreaView>;
   if(onboardingVisible)return <SafeAreaView style={s.base} edges={['top','bottom']}>
     <ScrollView contentContainerStyle={[s.body,{flexGrow:1,justifyContent:'center'}]}>
-      <Image source={require('./assets/branding/app-icon.png')} style={{width:124,height:124,alignSelf:'center',borderRadius:28}} />
-      <Txt big style={{textAlign:'center',fontSize:29}}>سه‌قلم غذا</Txt>
+      <Image source={require('./assets/branding/app-icon.png')} resizeMode="contain" style={{width:96,height:96,alignSelf:'center'}} />
+      <Txt big style={{textAlign:'center',fontSize:23}}>سه‌قلم غذا</Txt>
       <Txt muted style={{textAlign:'center'}}>ببین چی داری، بگو چی بپزی!</Txt>
       <Panel><Txt big>آشپزی از مواد خونه</Txt><Txt>۱. موادی که داری رو در یخچال ثبت کن.</Txt>
         <Txt>۲. غذاهای قابل پخت یا مواد کمبود رو ببین.</Txt>
         <Txt>۳. دستور رو مرحله‌به‌مرحله انجام بده.</Txt></Panel>
       <Panel><Txt weight>آفلاین، بدون ثبت‌نام</Txt><Txt muted>داده‌های این نسخه روی گوشی تو می‌مونن. دستورهای فعلی هنوز در مرحله بازبینی محتوا هستن.</Txt></Panel>
-      <Btn disabled={busy} onPress={()=>void run(async()=>{await db.finishOnboarding();setOnboardingVisible(false);setTab('pantry');})}>شروع و انتخاب مواد غذایی</Btn>
-      <Btn secondary disabled={busy} onPress={()=>void run(async()=>{await db.finishOnboarding();setOnboardingVisible(false);setTab('home');})}>فعلاً رد کن</Btn>
+      <Btn disabled={busy} onPress={()=>void run(async()=>{await db.finishOnboarding();setOnboardingVisible(false);openTour();})}>بله، راهنمای تعاملی را شروع کن</Btn>
+      <Btn secondary disabled={busy} onPress={()=>void run(async()=>{await db.finishOnboarding();setOnboardingVisible(false);setTab('home');})}>بدون راهنما وارد برنامه شو</Btn>
     </ScrollView>
   </SafeAreaView>;
   if(page==='tabs'&&tab==='recipes')return <SafeAreaView style={s.base} edges={['top','bottom']}>
-    <StatusBar barStyle="dark-content"/>
+    <StatusBar barStyle={isDark?"light-content":"dark-content"}/>
     {header()}
     <FlatList data={recipeList} keyExtractor={item=>item.id} renderItem={({item})=>card(item)}
       initialNumToRender={12} maxToRenderPerBatch={12} windowSize={7} removeClippedSubviews
@@ -254,6 +269,7 @@ function AppBody(){
       ListFooterComponent={<Txt muted style={{textAlign:'center',fontSize:12,marginTop:10}}>پایان فهرست • {fmt(recipeList.length)} دستور</Txt>}
     />
     {menu()}
+    {tour()}
   </SafeAreaView>;
   if(page==='favorites'||page==='history'){
     // Retain history timestamps with the matching recipe even if an old content
@@ -265,7 +281,7 @@ function AppBody(){
         return found?[{recipe:found,finishedAt:record.finishedAt}]:[];
       });
     return <SafeAreaView style={s.base} edges={['top','bottom']}>
-      <StatusBar barStyle="dark-content"/>
+      <StatusBar barStyle={isDark?"light-content":"dark-content"}/>
       {header()}
       <FlatList data={saved} keyExtractor={(item,index)=>`${item.recipe.id}-${index}`}
         renderItem={({item})=><SingleRecipe recipe={item.recipe} favorite={page==='favorites'} onPress={()=>showRecipe(item.recipe)}
@@ -278,14 +294,14 @@ function AppBody(){
       />
     </SafeAreaView>;
   }
-  return <SafeAreaView style={s.base} edges={['top','bottom']}><StatusBar barStyle="dark-content"/>
+  return <SafeAreaView style={s.base} edges={['top','bottom']}><StatusBar barStyle={isDark?"light-content":"dark-content"}/>
     {header()}
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
     {page==='tabs'&&tab==='home'?<>
       <View style={s.hero}>
         <View pointerEvents="none" style={s.heroOrb}/><View pointerEvents="none" style={s.heroOrbSmall}/>
         <Txt style={{color:c.saffron,fontSize:12,fontWeight:'700'}}>سه‌قلم | آشپزی هوشمند و آفلاین</Txt>
-        <Txt style={{color:'#FFF',fontSize:31,fontWeight:'800',lineHeight:46}}>امروز چی بپزیم؟</Txt>
+        <Txt style={{color:'#FFF',fontSize:25,fontWeight:'800',lineHeight:39}}>امروز چی بپزیم؟</Txt>
         <Txt style={{color:'#EBF4EB',fontSize:14}}>مواد خونه رو انتخاب کن، بقیه‌ش با ما!</Txt>
         <Pressable accessibilityRole="button" accessibilityLabel="رفتن به یخچال من" onPress={()=>setTab('pantry')} style={s.heroButton}>
           <Txt weight style={{color:c.deep}}>ثبت مواد غذایی  ←</Txt></Pressable>
@@ -341,7 +357,7 @@ function AppBody(){
       {!meals.length?<Txt muted>هنوز برنامه‌ای ثبت نشده است.</Txt>:null}
     </>:null}
     {page==='detail'?<>
-      <View style={s.detailHero}><Txt style={{fontSize:48,textAlign:'center'}}>🍽️</Txt><Txt big style={{textAlign:'center',color:c.dark}}>{recipe.title}</Txt><Txt muted style={{textAlign:'center'}}>{recipe.description}</Txt></View>
+      <View style={s.detailHero}><Txt style={{fontSize:40,lineHeight:64,includeFontPadding:true,textAlign:'center'}}>🍽️</Txt><Txt big style={{textAlign:'center',color:c.dark}}>{recipe.title}</Txt><Txt muted style={{textAlign:'center'}}>{recipe.description}</Txt></View>
       <View style={s.overview}><Txt>{fmt(recipe.prepMinutes+recipe.cookMinutes)} دقیقه</Txt><Txt>{fmt(servings)} نفر</Txt><Txt>{recipe.difficulty==='easy'?'آسان':'متوسط'}</Txt></View>
       <View style={s.spread}><Btn secondary onPress={()=>void run(()=>db.toggleFavorite(recipe.id,!favorites.includes(recipe.id)))}>{favorites.includes(recipe.id)?'♥ حذف علاقه‌مندی':'♡ ذخیره غذا'}</Btn><Txt muted>تعداد نفرات</Txt><Btn secondary onPress={()=>setServings(Math.max(1,servings-1))}>−</Btn><Btn secondary onPress={()=>setServings(Math.min(20,servings+1))}>＋</Btn></View>
       <Txt big>مواد مورد نیاز</Txt>
@@ -362,7 +378,7 @@ function AppBody(){
       <Txt muted>در حال پخت: {recipe.title} • {fmt(servings)} نفر</Txt>
       <Txt big style={{color:c.dark}}>مرحله {fmt(cookStep+1)} از {fmt(recipe.steps.length)}</Txt>
       <View style={s.progressTrack} accessible accessibilityRole="progressbar" accessibilityLabel={`پیشرفت آشپزی، مرحله ${cookStep+1} از ${recipe.steps.length}`} accessibilityValue={{min:0,max:recipe.steps.length,now:cookStep+1}}><View style={[s.progressFill,{width:`${((cookStep+1)/Math.max(1,recipe.steps.length))*100}%`}]}/></View>
-      <View style={s.cookingPanel}><Txt style={{fontSize:46}}>🍳</Txt><Txt big>{recipe.steps[cookStep]?.title}</Txt><Txt style={{fontSize:18,lineHeight:36}}>{recipe.steps[cookStep]?.body}</Txt>
+      <View style={s.cookingPanel}><Txt style={{fontSize:38,lineHeight:65,includeFontPadding:true}}>🍳</Txt><Txt big>{recipe.steps[cookStep]?.title}</Txt><Txt style={{fontSize:14,lineHeight:27}}>{recipe.steps[cookStep]?.body}</Txt>
         {recipe.steps[cookStep]?.safetyNote?<Txt style={{color:c.tomato}}>{recipe.steps[cookStep]?.safetyNote}</Txt>:null}</View>
       <Panel><Txt weight>تایمر مرحله</Txt>{session?.endAt&&currentTimer===0?<Txt weight style={{color:c.tomato}}>زمان این مرحله به پایان رسید.</Txt>:null}<Txt big style={{textAlign:'center'}}>{fmt(Math.floor(currentTimer/60000))}:{fmt(Math.floor(currentTimer/1000)%60).padStart(2,'۰')}</Txt>
         <View style={s.two}><Btn secondary onPress={toggleTimer}>{session?.endAt?(currentTimer>0?'مکث':'شروع مجدد'):'شروع / ادامه'}</Btn><Btn secondary onPress={()=>void run(()=>db.saveSession({recipeId:recipe.id,step:cookStep,servings,endAt:null,remainingMs:null}))}>بازنشانی</Btn></View>
@@ -404,36 +420,37 @@ function AppBody(){
     <View style={{height:20}}/>
     </ScrollView>
     {page==='tabs'?menu():null}
+    {tour()}
   </SafeAreaView>;
 }
-const s=StyleSheet.create({
-  base:{flex:1,backgroundColor:c.background},
+const createStyles=(c:Palette)=>StyleSheet.create({
+  base:{flex:1,backgroundColor:c.background,direction:'rtl'},
   header:{paddingHorizontal:18,paddingVertical:11,borderBottomWidth:1,borderBottomColor:c.line,backgroundColor:c.surface},
   backButton:{paddingHorizontal:13,paddingVertical:8,minHeight:45,justifyContent:'center',borderRadius:13,backgroundColor:c.pale},
   body:{paddingHorizontal:17,paddingTop:19,paddingBottom:36,gap:14,width:'100%',maxWidth:720,alignSelf:'center'},
-  hero:{backgroundColor:c.dark,borderRadius:28,padding:25,minHeight:218,gap:8,justifyContent:'center',overflow:'hidden',elevation:3},
+  hero:{backgroundColor:c.deep,borderRadius:24,padding:21,minHeight:188,gap:8,justifyContent:'center',overflow:'hidden',elevation:3},
   heroOrb:{position:'absolute',height:170,width:170,borderRadius:85,right:-50,top:-60,backgroundColor:'#2F624C'},
   heroOrbSmall:{position:'absolute',height:100,width:100,borderRadius:50,right:22,bottom:-67,backgroundColor:'#4A7754'},
   heroButton:{backgroundColor:c.saffron,borderRadius:15,alignSelf:'flex-end',minHeight:48,justifyContent:'center',paddingVertical:9,paddingHorizontal:19,marginTop:11},
-  overview:{flexDirection:'row-reverse',justifyContent:'space-around',paddingVertical:18,paddingHorizontal:12,backgroundColor:c.pale,borderRadius:22,alignItems:'center',borderWidth:1,borderColor:c.line},
-  sectionTitle:{flexDirection:'row-reverse',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8},
-  input:{fontFamily:'Vazirmatn-Regular',backgroundColor:c.surface,borderWidth:1.3,borderColor:c.line,borderRadius:16,minHeight:52,paddingHorizontal:15,fontSize:15,color:c.dark,writingDirection:'rtl',textAlign:'right'},
-  recipeCard:{flexDirection:'row-reverse',alignItems:'center',gap:12,backgroundColor:c.surface,padding:13,borderRadius:22,borderWidth:1,borderColor:c.line,minHeight:94},
-  dishIcon:{width:66,height:66,borderRadius:19,alignItems:'center',justifyContent:'center'},
+  overview:{flexDirection:'row',justifyContent:'space-around',paddingVertical:18,paddingHorizontal:12,backgroundColor:c.pale,borderRadius:22,alignItems:'center',borderWidth:1,borderColor:c.line},
+  sectionTitle:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8},
+  input:{fontFamily:'Vazirmatn-Regular',backgroundColor:c.surface,borderWidth:1,borderColor:c.line,borderRadius:13,minHeight:46,paddingHorizontal:13,fontSize:13,color:c.text,writingDirection:'rtl',textAlign:'right',includeFontPadding:true},
+  recipeCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:c.surface,padding:13,borderRadius:22,borderWidth:1,borderColor:c.line,minHeight:94},
+  dishIcon:{width:60,height:60,borderRadius:18,alignItems:'center',justifyContent:'center',overflow:'visible'},
   cardArrow:{width:24,height:35,alignItems:'center',justifyContent:'center'},
   statusPill:{borderRadius:10,paddingVertical:4,paddingHorizontal:9,alignSelf:'flex-end'},
   chip:{backgroundColor:c.pale,borderRadius:22,paddingVertical:10,paddingHorizontal:15,minHeight:43,justifyContent:'center'},
-  chipActive:{backgroundColor:c.dark},categories:{gap:8,paddingVertical:4},
-  wrap:{flexDirection:'row-reverse',flexWrap:'wrap',gap:8},
+  chipActive:{backgroundColor:c.green},categories:{gap:8,paddingVertical:4},
+  wrap:{flexDirection:'row',flexWrap:'wrap',gap:8},
   smallChip:{backgroundColor:c.pale,borderRadius:14,paddingHorizontal:12,paddingVertical:8,minHeight:43,justifyContent:'center',borderWidth:1,borderColor:c.line},
   selectedChip:{backgroundColor:c.green,borderColor:c.green},
   spread:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'},
-  two:{flexDirection:'row-reverse',gap:10,justifyContent:'space-around'},
-  tabs:{flexDirection:'row-reverse',padding:7,backgroundColor:c.surface,borderTopWidth:1,borderTopColor:c.line,minHeight:72},
+  two:{flexDirection:'row',gap:10,justifyContent:'space-around',flexWrap:'wrap',alignItems:'center'},
+  tabs:{flexDirection:'row',padding:7,backgroundColor:c.surface,borderTopWidth:1,borderTopColor:c.line,minHeight:72},
   tab:{flex:1,alignItems:'center',justifyContent:'center',padding:4,borderRadius:15,minHeight:55,gap:1},
   tabActive:{backgroundColor:c.pale,borderBottomWidth:2,borderBottomColor:c.green},
   detailHero:{backgroundColor:c.pale,borderRadius:25,paddingVertical:29,paddingHorizontal:20,gap:12},
-  cookingPanel:{backgroundColor:c.surface,borderRadius:24,padding:24,alignItems:'flex-end',minHeight:240,gap:17,justifyContent:'center',borderWidth:1,borderColor:c.line},
+  cookingPanel:{backgroundColor:c.surface,borderRadius:24,padding:18,alignItems:'stretch',minHeight:210,gap:17,justifyContent:'center',borderWidth:1,borderColor:c.line},
   progressTrack:{height:8,borderRadius:8,backgroundColor:c.pale,overflow:'hidden'},
   progressFill:{height:'100%',borderRadius:8,backgroundColor:c.green},
 });
