@@ -1,1 +1,15 @@
-{"extends":"@react-native/typescript-config","compilerOptions":{"strict":true,"noUncheckedIndexedAccess":true,"noImplicitReturns":true,"skipLibCheck":true},"include":["App.tsx","index.js","src/**/*"]}
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": [
+    "App.tsx",
+    "index.js",
+    "src/**/*"
+  ]
+}
