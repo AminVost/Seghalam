@@ -116,7 +116,7 @@ try {
     if ($UseMavenMirror) {
       $mirrorScript = Join-Path $root 'scripts/android-maven-mirror.init.gradle'
       if (-not (Test-Path $mirrorScript)) { throw "Optional Maven mirror init script not found: $mirrorScript" }
-      Write-Warning 'Using the third-party Aliyun Google Maven mirror for Android artifacts in THIS build only.'
+      Write-Warning 'Using third-party Aliyun mirrors for Google Maven and Maven Central in THIS build only.'
       $gradleArguments = @('--init-script', $mirrorScript) + $gradleArguments + @('--refresh-dependencies')
     }
     & .\gradlew.bat @gradleArguments
