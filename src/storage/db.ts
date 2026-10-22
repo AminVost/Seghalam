@@ -162,6 +162,27 @@ export async function addPantry(ingredientId:string,quantity:Quantity|null,expir
   await connection().execute('INSERT INTO pantry (id, ingredient_id, amount, unit, expires_on, place, created_at) VALUES (?,?,?,?,?,?,?)',
     [id(),ingredientId,quantity?.amount??null,quantity?.unit??null,expiresOn??null,place,iso()]);
 }
+/** Add several chosen ingredients as explicitly unknown quantities in one atomic write.
+ * Never overwrite existing pantry rows or turn an unknown amount into a claim
+ * that a recipe is ready to cook.
+ */
+export async function addPantryBulk(ingredientIds:readonly string[],place:StoragePlace='fridge'):Promise<number>{
+  const ids=[...new Set(ingredientIds)];
+  if(ids.length===0||ids.length>50)throw new Error('بین ۱ تا ۵۰ ماده غذایی انتخاب کن');
+  if(!['fridge','freezer','cabinet'].includes(place))throw new Error('محل نگهداری نامعتبر است');
+  ids.forEach(requireIngredient);
+  let added=0;
+  await connection().transaction(async tx=>{
+    for(const ingredientId of ids){
+      const exists=await tx.execute('SELECT id FROM pantry WHERE ingredient_id=? LIMIT 1',[ingredientId]);
+      if(exists.rows.length)continue;
+      await tx.execute('INSERT INTO pantry (id,ingredient_id,amount,unit,expires_on,place,created_at) VALUES (?,?,NULL,NULL,NULL,?,?)',
+        [id(),ingredientId,place,iso()]);
+      added++;
+    }
+  });
+  return added;
+}
 export async function editPantry(itemId:string,quantity:Quantity|null,expiresOn?:string,place:StoragePlace='fridge'):Promise<void>{
   requireQuantity(quantity);
   if(!['fridge','freezer','cabinet'].includes(place))throw new Error('محل نگهداری نامعتبر است');
@@ -198,6 +219,22 @@ export async function addShopping(ingredientId:string,quantity:Quantity|null):Pr
     await tx.execute('INSERT INTO shopping(id,ingredient_id,amount,unit,done) VALUES(?,?,?,?,0)',
       [id(),ingredientId,quantity?.amount??null,quantity?.unit??null]);
   });
+}
+/** Add multiple shopping ingredients without silently assigning quantities. */
+export async function addShoppingBulk(ingredientIds:readonly string[]):Promise<number>{
+  const ids=[...new Set(ingredientIds)];
+  if(ids.length===0||ids.length>50)throw new Error('بین ۱ تا ۵۰ ماده غذایی انتخاب کن');
+  ids.forEach(requireIngredient);
+  let added=0;
+  await connection().transaction(async tx=>{
+    for(const ingredientId of ids){
+      const exists=await tx.execute('SELECT id FROM shopping WHERE ingredient_id=? AND done=0 LIMIT 1',[ingredientId]);
+      if(exists.rows.length)continue;
+      await tx.execute('INSERT INTO shopping(id,ingredient_id,amount,unit,done) VALUES(?,?,NULL,NULL,0)',[id(),ingredientId]);
+      added++;
+    }
+  });
+  return added;
 }
 export async function editShopping(itemId:string,quantity:Quantity|null):Promise<void>{
   requireQuantity(quantity);
@@ -296,4 +333,15 @@ export async function getOnboardingCompleted():Promise<boolean>{
 }
 export async function finishOnboarding():Promise<void>{
   await connection().execute('INSERT OR REPLACE INTO user_setting(key,value) VALUES(?,?)',['onboarding_completed','1']);
+}
+
+export type UiThemeMode='system'|'light'|'dark';
+export async function getThemePreference():Promise<UiThemeMode>{
+  const r=await connection().execute('SELECT value FROM user_setting WHERE key=?',['ui_theme']);
+  const value=r.rows.length?String(r.rows[0]?.value):'system';
+  return value==='light'||value==='dark'?value:'system';
+}
+export async function saveThemePreference(mode:UiThemeMode):Promise<void>{
+  if(!['system','light','dark'].includes(mode))throw new Error('تم نامعتبر است');
+  await connection().execute('INSERT OR REPLACE INTO user_setting(key,value) VALUES(?,?)',['ui_theme',mode]);
 }
