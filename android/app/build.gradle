@@ -1,0 +1,34 @@
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'com.facebook.react'
+
+react { autolinkLibrariesWithApp() }
+android {
+    ndkVersion rootProject.ext.ndkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+    namespace 'ir.seghalam.food'
+    defaultConfig {
+        applicationId 'ir.seghalam.food'
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 2
+        versionName '0.2.0'
+    }
+    buildTypes {
+        debug { debuggable true }
+        release {
+            minifyEnabled false
+            // Release signing MUST be configured with the actual publisher key.
+            // No debug keystore is ever used for publication here.
+        }
+    }
+}
+dependencies {
+    implementation('com.facebook.react:react-android')
+    if (hermesEnabled.toBoolean()) {
+        implementation('com.facebook.react:hermes-android')
+    } else {
+        implementation 'org.webkit:android-jsc:+'
+    }
+}
