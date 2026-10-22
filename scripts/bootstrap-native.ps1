@@ -8,6 +8,11 @@ Set-Location $root
 function Assert-LastExit([string]$operation) {
   if ($LASTEXITCODE -ne 0) { throw "$operation failed with exit code $LASTEXITCODE" }
 }
+# Windows PowerShell 5.1 Set-Content -Encoding UTF8 adds a BOM. That BOM
+# breaks React Native CLI's JSON parser when it reads package.json.
+function Write-Utf8NoBom([string]$path, [string]$content) {
+  [System.IO.File]::WriteAllText($path, $content, [System.Text.UTF8Encoding]::new($false))
+}
 function Need-Command([string]$command) {
   if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
     throw "Missing $command. Install Node.js, JDK and Android Studio first."
@@ -52,8 +57,8 @@ if (-not (Test-Path $wrapper)) {
     $mainManifestPath = Join-Path $root 'android/app/src/main/AndroidManifest.xml'
     $debugManifestPath = Join-Path $root 'android/app/src/debug/AndroidManifest.xml'
     New-Item -ItemType Directory (Split-Path $debugManifestPath) -Force | Out-Null
-    Set-Content $mainManifestPath $originalManifest -Encoding UTF8
-    Set-Content $debugManifestPath $debugManifest -Encoding UTF8
+    Write-Utf8NoBom $mainManifestPath $originalManifest
+    Write-Utf8NoBom $debugManifestPath $debugManifest
     Copy-Item (Join-Path $root 'assets/branding/android/*') (Join-Path $root 'android/app/src/main/res') -Recurse -Force
     $stringsPath = Join-Path $root 'android/app/src/main/res/values/strings.xml'
     if (Test-Path $stringsPath) {
@@ -64,7 +69,7 @@ if (-not (Test-Path $wrapper)) {
       $appName = -join (@(0x0633, 0x0647, 0x200C, 0x0642, 0x0644, 0x0645, 0x0020, 0x063A, 0x0630, 0x0627) | ForEach-Object { [char]$_ })
       $replacement = '<string name="app_name">' + $appName + '</string>'
       $strings = [regex]::Replace($strings, '<string name="app_name">.*?</string>', $replacement)
-      Set-Content $stringsPath $strings -Encoding UTF8
+      Write-Utf8NoBom $stringsPath $strings
     }
     $mainKt = Get-ChildItem (Join-Path $root 'android/app/src/main/java') -Filter MainApplication.kt -Recurse | Select-Object -First 1
     if ($mainKt) {
@@ -72,7 +77,7 @@ if (-not (Test-Path $wrapper)) {
       if ($kt -notmatch 'I18nUtil') {
         $kt = $kt -replace 'import android.app.Application', "import android.app.Application`nimport com.facebook.react.modules.i18nmanager.I18nUtil"
         $kt = $kt -replace 'super.onCreate\(\)', "super.onCreate()`n    I18nUtil.getInstance().allowRTL(applicationContext, true)`n    I18nUtil.getInstance().forceRTL(applicationContext, true)"
-        Set-Content $mainKt.FullName $kt -Encoding UTF8
+        Write-Utf8NoBom $mainKt.FullName $kt
       }
     }
     # Native template defines the toolchain pairings; keep our additional
@@ -86,7 +91,7 @@ if (-not (Test-Path $wrapper)) {
         }
       }
     }
-    $ourManifest | ConvertTo-Json -Depth 20 | Set-Content (Join-Path $root 'package.json') -Encoding UTF8
+    Write-Utf8NoBom (Join-Path $root 'package.json') ($ourManifest | ConvertTo-Json -Depth 20)
   } finally {
     if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
   }
