@@ -1,3 +1,7 @@
+## UI release 0.3.0 update (2026-10-22)
+
+The current script output is `Seghalam-0.3.0-PHONE-TEST.apk`; its test signing key must match the prior installed APK to permit a non-destructive update. `versionCode=3`. Avoid deleting user data. RTL, theme switching, onboarding coach and multiselect require real-device acceptance testing. See `docs/UX_RTL_REVIEW_2026-10-22_FA.md`.
+
 # Clone & Android phone APK test — Windows 11
 
 This repo contains the complete React Native source and offline recipe drafts.
