@@ -49,3 +49,38 @@ test('existing v6 user database skips migrations and still reads the bundled cat
   assert.ok(!calls.some(({sql})=>/^\s*INSERT\s+INTO\s+catalog_/i.test(sql)));
   await assert.rejects(storage.addMeal('2026-10-22','شام','nonexistent-recipe'));
 });
+
+
+test('bulk pantry creation is atomic, deduplicated and never invents amounts',async()=>{
+  const {storage,calls}=loadNativeStorage(6);
+  await storage.initializeDatabase();
+  const added=await storage.addPantryBulk(['egg','tomato','egg'],'freezer');
+  assert.equal(added,2);
+  const inserts=calls.filter(({sql})=>sql.startsWith('INSERT INTO pantry ('));
+  assert.equal(inserts.length,2);
+  assert.deepEqual(inserts.map(x=>x.params[1]),['egg','tomato']);
+  assert.ok(inserts.every(x=>/NULL,NULL,NULL/.test(x.sql)));
+  assert.ok(inserts.every(x=>x.params[2]==='freezer'));
+  await assert.rejects(storage.addPantryBulk([], 'fridge'));
+  await assert.rejects(storage.addPantryBulk(['unknown_food'],'fridge'));
+});
+
+test('bulk shopping creation is atomic and ignores duplicate choices',async()=>{
+  const {storage,calls}=loadNativeStorage(6);
+  await storage.initializeDatabase();
+  assert.equal(await storage.addShoppingBulk(['egg','rice','rice']),2);
+  const inserts=calls.filter(({sql})=>sql.startsWith('INSERT INTO shopping('));
+  assert.equal(inserts.length,2);
+  assert.ok(inserts.every(x=>/NULL,NULL,0/.test(x.sql)));
+  await assert.rejects(storage.addShoppingBulk(['__bad_id__']));
+});
+
+test('theme preference defaults to system and persists in existing user_setting table',async()=>{
+  const {storage,calls}=loadNativeStorage(6);
+  await storage.initializeDatabase();
+  assert.equal(await storage.getThemePreference(),'system');
+  await storage.saveThemePreference('dark');
+  await storage.saveThemePreference('light');
+  assert.ok(calls.some(x=>x.sql.startsWith('INSERT OR REPLACE INTO user_setting')&&x.params[1]==='dark'));
+  await assert.rejects(storage.saveThemePreference('ultraviolet'));
+});
