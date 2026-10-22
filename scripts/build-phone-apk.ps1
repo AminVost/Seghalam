@@ -36,6 +36,22 @@ $env:ANDROID_SDK_ROOT = $sdk
 Write-Host "Android SDK: $sdk"
 Write-Warning 'TEST BUILD ONLY: this app still contains recipes awaiting culinary verification.'
 
+# Repair a package.json written with a UTF-8 BOM by older Windows PowerShell
+# bootstrap runs. The CLI config loader rejects BOM-prefixed JSON.
+$manifestPath = Join-Path $root 'package.json'
+$manifestBytes = [System.IO.File]::ReadAllBytes($manifestPath)
+if ($manifestBytes.Length -ge 3 -and $manifestBytes[0] -eq 0xEF -and $manifestBytes[1] -eq 0xBB -and $manifestBytes[2] -eq 0xBF) {
+  $manifestText = [System.IO.File]::ReadAllText($manifestPath, [System.Text.Encoding]::UTF8)
+  [System.IO.File]::WriteAllText($manifestPath, $manifestText, [System.Text.UTF8Encoding]::new($false))
+  Write-Host 'Fixed UTF-8 BOM in package.json for React Native CLI.'
+}
+# Validate the local file separately so malformed JSON fails with a direct error.
+try {
+  $null = [System.IO.File]::ReadAllText($manifestPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json -ErrorAction Stop
+} catch {
+  throw "package.json is not valid JSON: $($_.Exception.Message)"
+}
+
 $wrapper = Join-Path $root 'android/gradlew.bat'
 $installed = Join-Path $root 'node_modules/react-native/package.json'
 if (-not (Test-Path $wrapper) -or -not (Test-Path $installed)) {
