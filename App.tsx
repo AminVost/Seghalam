@@ -380,10 +380,12 @@ function AppBody(){
       </Panel>
       <Txt big>مواد ثبت‌شده ({fmt(pantry.length)})</Txt>
       {!pantry.length?<Panel><Txt muted>هنوز ماده‌ای اضافه نشده است.</Txt></Panel>:null}
-      {pantry.map(row=><Panel key={row.id}><View style={s.spread}><Pressable onPress={()=>Alert.alert('حذف ماده','این قلم حذف شود؟',[{text:'انصراف'},{text:'حذف',style:'destructive',onPress:()=>void run(()=>db.removePantry(row.id))}])}><Txt style={{color:c.tomato}}>حذف</Txt></Pressable>
-          <View style={{flex:1,alignItems:'flex-end'}}><Txt weight>{BY_ID.get(row.ingredientId)?.fa}</Txt><Txt muted>{row.quantity?quantityFa(row.quantity):'مقدار نامشخص'} • {row.place==='freezer'?'فریزر':row.place==='cabinet'?'کابینت':'یخچال'}</Txt>
+      {pantry.map(row=><Panel key={row.id}><View style={s.spread}>
+          <View style={{flex:1,alignItems:'flex-start'}}><Txt weight>{BY_ID.get(row.ingredientId)?.fa}</Txt><Txt muted>{row.quantity?quantityFa(row.quantity):'مقدار نامشخص'} • {row.place==='freezer'?'فریزر':row.place==='cabinet'?'کابینت':'یخچال'}</Txt>
           {row.expiresOn?<Txt style={{fontSize:12,color:isExpired(row.expiresOn)?c.tomato:c.secondary}}>{isExpired(row.expiresOn)?'منقضی شده · ': 'انقضا: '}{formatJalali(row.expiresOn)}</Txt>:null}
-          <Btn secondary onPress={()=>beginEditPantry(row)}>ویرایش مقدار / انقضا</Btn></View></View></Panel>)}
+          <Btn secondary onPress={()=>beginEditPantry(row)}>ویرایش مقدار / انقضا</Btn></View>
+          <Pressable accessibilityRole="button" accessibilityLabel="حذف ماده" onPress={()=>Alert.alert('حذف ماده','این قلم حذف شود؟',[{text:'انصراف'},{text:'حذف',style:'destructive',onPress:()=>void run(()=>db.removePantry(row.id))}])}><Txt style={{color:c.tomato}}>حذف</Txt></Pressable>
+        </View></Panel>)}
     </>:null}
     {page==='tabs'&&tab==='plan'?<>
       <Txt big>برنامه غذایی من</Txt><Txt muted>برای هر روز، یک یا چند وعده برنامه‌ریزی کن.</Txt>
@@ -397,22 +399,24 @@ function AppBody(){
         <Btn disabled={busy||!planRecipe} onPress={()=>void run(async()=>{const isoDay=toIsoDate(planDay);if(!selectedRecipeStillVisible(planRecipe,planCandidates))throw new Error('ابتدا یک غذا از نتایج فعلی انتخاب کن');await db.addMeal(isoDay,planSlot,planRecipe);})}>ثبت برنامه</Btn>
       </Panel>
       <Txt big>وعده‌های ثبت‌شده</Txt>
-      {meals.map(m=><Panel key={m.id}><View style={s.spread}><Pressable onPress={()=>void run(()=>db.removeMeal(m.id))}><Txt style={{color:c.tomato}}>حذف</Txt></Pressable><View><Txt weight>{formatJalali(m.date)} · {m.meal}</Txt><Txt>{catalog.find(r=>r.id===m.recipeId)?.title??'غذای حذف‌شده'}</Txt></View></View></Panel>)}
+      {meals.map(m=><Panel key={m.id}><View style={s.spread}><View style={{flex:1}}><Txt weight>{formatJalali(m.date)} · {m.meal}</Txt><Txt>{catalog.find(r=>r.id===m.recipeId)?.title??'غذای حذف‌شده'}</Txt></View><Pressable accessibilityRole="button" accessibilityLabel="حذف وعده غذایی" onPress={()=>void run(()=>db.removeMeal(m.id))}><Txt style={{color:c.tomato}}>حذف</Txt></Pressable></View></Panel>)}
       {!meals.length?<Txt muted>هنوز برنامه‌ای ثبت نشده است.</Txt>:null}
     </>:null}
     {page==='detail'?<>
       <View style={s.detailHero}><Txt style={{fontSize:40,lineHeight:64,includeFontPadding:true,textAlign:'center'}}>🍽️</Txt><Txt big style={{textAlign:'center',color:c.dark}}>{recipe.title}</Txt><Txt muted style={{textAlign:'center'}}>{recipe.description}</Txt></View>
       <View style={s.overview}><Txt>{fmt(recipe.prepMinutes+recipe.cookMinutes)} دقیقه</Txt><Txt>{fmt(servings)} نفر</Txt><Txt>{recipe.difficulty==='easy'?'آسان':'متوسط'}</Txt></View>
-      <View style={s.spread}><Btn secondary onPress={()=>void run(()=>db.toggleFavorite(recipe.id,!favorites.includes(recipe.id)))}>{favorites.includes(recipe.id)?'♥ حذف علاقه‌مندی':'♡ ذخیره غذا'}</Btn><Txt muted>تعداد نفرات</Txt><Btn secondary onPress={()=>setServings(Math.max(1,servings-1))}>−</Btn><Btn secondary onPress={()=>setServings(Math.min(20,servings+1))}>＋</Btn></View>
+      <Panel><View style={s.spread}><Txt weight>تعداد نفرات: {fmt(servings)}</Txt><View style={s.two}><Btn secondary onPress={()=>setServings(Math.max(1,servings-1))}>−</Btn><Btn secondary onPress={()=>setServings(Math.min(20,servings+1))}>＋</Btn></View></View>
+        <Btn secondary onPress={()=>void run(()=>db.toggleFavorite(recipe.id,!favorites.includes(recipe.id)))}>{favorites.includes(recipe.id)?'♥ حذف علاقه‌مندی':'♡ ذخیره غذا'}</Btn></Panel>
       <Txt big>مواد مورد نیاز</Txt>
       {recipe.ingredients.map((ing,i)=>{
         const q=scaleQuantity(ing.quantity,recipe.servings,servings,ing.scaling);
         const one=matchRecipe({...recipe,ingredients:[{...ing,essential:true}]},pantry,servings,{excludedIngredientIds:[],excludedAllergens});
         const shortage=one.missing.find(m=>m.ingredientId===ing.ingredientId)?.shortfall;
         return <Panel key={`${ing.ingredientId}-${i}`}><View style={s.spread}>
-          <Btn secondary disabled={busy||!ing.essential||one.status!=='missing'||!shortage} onPress={()=>void run(()=>db.addShopping(ing.ingredientId,shortage??q))}>+ کمبود</Btn>
           <View style={{flex:1}}><Txt weight>{BY_ID.get(ing.ingredientId)?.fa}{!ing.essential?' (اختیاری)':''}</Txt><Txt muted>{quantityFa(q)}</Txt>
-            <Txt style={{color:one.status==='ready'?c.green:c.tomato,fontSize:12}}>{!ing.essential?'اختیاری است؛ برای پخت ضروری نیست':one.status==='ready'?'موجود':one.status==='uncertain'?'مقدار نامعلوم؛ موجودی را بررسی کن':one.explanation}</Txt></View></View></Panel>;
+            <Txt style={{color:one.status==='ready'?c.successText:c.tomato,fontSize:12}}>{!ing.essential?'اختیاری است؛ برای پخت ضروری نیست':one.status==='ready'?'موجود':one.status==='uncertain'?'مقدار نامعلوم؛ موجودی را بررسی کن':one.explanation}</Txt></View>
+          <Btn secondary disabled={busy||!ing.essential||one.status!=='missing'||!shortage} onPress={()=>void run(()=>db.addShopping(ing.ingredientId,shortage??q))}>+ کمبود</Btn>
+        </View></Panel>;
       })}
       <Panel><Txt muted>این دستور در کاتالوگ آزمایشی است و هنوز بازبینی مستقل نهایی نشده است.</Txt></Panel>
       <Btn secondary onPress={()=>void Share.share({message:`${recipe.title}\n\n${recipe.ingredients.map(i=>`${BY_ID.get(i.ingredientId)?.fa}: ${quantityFa(scaleQuantity(i.quantity,recipe.servings,servings,i.scaling))}`).join('\n')}\n\n${recipe.steps.map((step,i)=>`${i+1}. ${step.body}`).join('\n')}`})}>اشتراک‌گذاری متن دستور</Btn>
@@ -459,11 +463,11 @@ function AppBody(){
           {editingShoppingId?<Btn secondary onPress={resetShoppingEditor}>انصراف از ویرایش</Btn>:null}
         </>:null}
       </Panel>
-      {shopping.map(item=><Panel key={item.id}><View style={s.spread}><Btn secondary disabled={busy} onPress={()=>void run(()=>db.purchaseShopping(item))}>انتقال به یخچال ✓</Btn>
-        <Pressable onPress={()=>void run(()=>db.removeShopping(item.id))}><Txt style={{color:c.tomato}}>حذف</Txt></Pressable><View><Txt weight>{BY_ID.get(item.ingredientId)?.fa}</Txt><Txt muted>{item.quantity?quantityFa(item.quantity):'مقدار نامشخص'}</Txt>
+      {shopping.map(item=><Panel key={item.id}><View style={s.spread}><View style={{flex:1,gap:4}}><Txt weight>{BY_ID.get(item.ingredientId)?.fa}</Txt><Txt muted>{item.quantity?quantityFa(item.quantity):'مقدار نامشخص'}</Txt>
           <Btn secondary onPress={()=>{setEditingShoppingId(item.id);setShoppingPick(item.ingredientId);setShoppingSearch(BY_ID.get(item.ingredientId)?.fa??'');setShoppingAmount(item.quantity?String(item.quantity.amount):'');setShoppingUnit(item.quantity?.unit??defaultUnitFor(item.ingredientId));}}>ویرایش</Btn>
-          <Pressable onPress={()=>void run(()=>db.updateShoppingDone(item.id,!item.done))}><Txt style={{color:c.green}}>{item.done?'☑ خریداری شده':'☐ علامت‌گذاری خرید'}</Txt></Pressable>
-          </View></View></Panel>)}
+          <Pressable onPress={()=>void run(()=>db.updateShoppingDone(item.id,!item.done))}><Txt style={{color:c.successText}}>{item.done?'☑ خریداری شده':'☐ علامت‌گذاری خرید'}</Txt></Pressable>
+          </View><View style={{gap:6,alignItems:'center'}}><Btn secondary disabled={busy} onPress={()=>void run(()=>db.purchaseShopping(item))}>انتقال به یخچال ✓</Btn>
+          <Pressable accessibilityRole="button" accessibilityLabel="حذف قلم خرید" onPress={()=>void run(()=>db.removeShopping(item.id))}><Txt style={{color:c.tomato}}>حذف</Txt></Pressable></View></View></Panel>)}
       {!shopping.length?<Panel><Txt muted>فهرست خرید خالی است. از صفحه غذا مواد کمبود را اضافه کن.</Txt></Panel>:null}
     </>:null}
     {page==='settings'?<>
@@ -504,7 +508,7 @@ const createStyles=(c:Palette)=>StyleSheet.create({
   hero:{backgroundColor:c.deep,borderRadius:24,padding:21,minHeight:188,gap:8,justifyContent:'center',overflow:'hidden',elevation:3},
   heroOrb:{position:'absolute',height:170,width:170,borderRadius:85,right:-50,top:-60,backgroundColor:'#2F624C'},
   heroOrbSmall:{position:'absolute',height:100,width:100,borderRadius:50,right:22,bottom:-67,backgroundColor:'#4A7754'},
-  heroButton:{backgroundColor:c.saffron,borderRadius:15,alignSelf:'flex-end',minHeight:48,justifyContent:'center',paddingVertical:9,paddingHorizontal:19,marginTop:11},
+  heroButton:{backgroundColor:c.saffron,borderRadius:15,alignSelf:'flex-start',minHeight:48,justifyContent:'center',paddingVertical:9,paddingHorizontal:19,marginTop:11},
   overview:{flexDirection:'row',justifyContent:'space-around',paddingVertical:14,paddingHorizontal:10,backgroundColor:c.pale,borderRadius:22,alignItems:'center',borderWidth:1,borderColor:c.line},
   sectionTitle:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8},
   input:{fontFamily:'Vazirmatn-Regular',backgroundColor:c.surface,borderWidth:1,borderColor:c.line,borderRadius:13,minHeight:46,paddingHorizontal:13,fontSize:13,color:c.text,writingDirection:'rtl',textAlign:'right',includeFontPadding:true},
