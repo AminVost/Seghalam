@@ -44,11 +44,14 @@ export async function initializeDatabase():Promise<void>{
   try{await initPromise;}finally{initPromise=null;}
 }
 async function initializeSchema():Promise<void>{
+  let stage='opening database and enabling foreign keys';
+  try {
   await connection().execute('PRAGMA foreign_keys = ON');
   await connection().execute('CREATE TABLE IF NOT EXISTS schema_meta (id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL)');
   const info=await connection().execute('SELECT version FROM schema_meta WHERE id=1');
   const version=info.rows.length?Number(info.rows[0]?.version):0;
   if(version>6)throw new Error('نسخه دیتابیس جدیدتر از نسخه اپ است');
+  stage='creating base tables (v1)';
   if(version<1){
     await connection().transaction(async tx=>{
       await tx.execute('CREATE TABLE IF NOT EXISTS pantry (id TEXT PRIMARY KEY, ingredient_id TEXT NOT NULL, amount REAL, unit TEXT, expires_on TEXT, place TEXT, created_at TEXT NOT NULL, CHECK(amount IS NULL OR amount>=0), CHECK((amount IS NULL AND unit IS NULL) OR (amount IS NOT NULL AND unit IS NOT NULL)))');
@@ -61,12 +64,14 @@ async function initializeSchema():Promise<void>{
       await tx.execute('INSERT OR REPLACE INTO schema_meta(id,version) VALUES(1,1)');
     });
   }
+  stage='creating settings table (v2)';
   if(version<2){
     await connection().transaction(async tx=>{
       await tx.execute('CREATE TABLE IF NOT EXISTS user_setting (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
       await tx.execute('INSERT OR REPLACE INTO schema_meta(id,version) VALUES(1,2)');
     });
   }
+  stage='creating shopping validation (v3)';
   if(version<3){
     await connection().transaction(async tx=>{
       await tx.execute(`CREATE TRIGGER IF NOT EXISTS trg_shopping_valid_insert BEFORE INSERT ON shopping
@@ -80,6 +85,7 @@ async function initializeSchema():Promise<void>{
       await tx.execute('INSERT OR REPLACE INTO schema_meta(id,version) VALUES(1,3)');
     });
   }
+  stage='creating catalog tables (v4)';
   if(version<4){
     await connection().transaction(async tx=>{
       await tx.execute('CREATE TABLE IF NOT EXISTS catalog_ingredient (id TEXT PRIMARY KEY, name_fa TEXT NOT NULL, payload TEXT NOT NULL)');
@@ -92,6 +98,7 @@ async function initializeSchema():Promise<void>{
       await tx.execute('INSERT OR REPLACE INTO schema_meta(id,version) VALUES(1,4)');
     });
   }
+  stage='creating catalog search tables (v5)';
   if(version<5){
     await connection().transaction(async tx=>{
       await tx.execute('CREATE TABLE IF NOT EXISTS catalog_ingredient_alias (ingredient_id TEXT NOT NULL REFERENCES catalog_ingredient(id) ON DELETE CASCADE, alias TEXT NOT NULL, normalized_alias TEXT NOT NULL, PRIMARY KEY(ingredient_id,normalized_alias))');
@@ -101,6 +108,7 @@ async function initializeSchema():Promise<void>{
       await tx.execute('INSERT OR REPLACE INTO schema_meta(id,version) VALUES(1,5)');
     });
   }
+  stage='migrating cooking sessions (v6)';
   if(version<6){
     await connection().transaction(async tx=>{
       // Pre-v6 sessions had no portion count; zero means use the source recipe default.
@@ -108,9 +116,16 @@ async function initializeSchema():Promise<void>{
       await tx.execute('INSERT OR REPLACE INTO schema_meta(id,version) VALUES(1,6)');
     });
   }
+  stage='creating recipe title index';
   await connection().execute('CREATE INDEX IF NOT EXISTS idx_catalog_title ON catalog_recipe(title)');
+  stage='seeding offline catalog';
   await syncCatalog();
   initialized=true;
+  } catch(error) {
+    const details=error instanceof Error?error.message:String(error);
+    console.error('[Seghalam SQLite startup]',stage,error);
+    throw new Error(`SQLite startup failed during ${stage}: ${details}`);
+  }
 }
 /** Versioned offline catalog, seeded transactionally while preserving user tables. */
 async function syncCatalog():Promise<void>{
