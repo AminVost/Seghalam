@@ -2,12 +2,12 @@ import {open} from '@op-engineering/op-sqlite';
 import type {PantryItem, Quantity, StoragePlace} from '../domain/types';
 import {consumeItems} from '../domain/inventory';
 import {isValidIsoDay} from '../domain/dates';
-import {BY_ID,INGREDIENTS} from '../data/ingredients';
+import {BY_ID} from '../data/ingredients';
 import {RECIPES} from '../data/recipes';
 import {validateCatalog} from '../domain/validate';
 import type {Recipe} from '../domain/types';
 import {convert} from '../domain/units';
-import {normalizeFa} from '../domain/normalize';
+import {pageStaticCatalog,searchStaticCatalog} from '../domain/staticCatalog';
 
 // Open lazily during bootstrap: a native SQLite failure can be shown by the UI
 // instead of crashing the module during application import.
@@ -21,7 +21,6 @@ export type Meal={id:string;date:string;meal:string;recipeId:string};
 export type CookingSession={recipeId:string;step:number;servings:number;endAt:number|null;remainingMs:number|null};
 const id=()=>`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
 const iso=()=>new Date().toISOString();
-const CONTENT_REVISION=2026102003; // Bump when bundled editorial catalog changes.
 let catalogCache:Recipe[]|null=null;
 let initialized=false;
 let initPromise:Promise<void>|null=null;
@@ -118,8 +117,8 @@ async function initializeSchema():Promise<void>{
   }
   stage='creating recipe title index';
   await connection().execute('CREATE INDEX IF NOT EXISTS idx_catalog_title ON catalog_recipe(title)');
-  stage='seeding offline catalog';
-  await syncCatalog();
+  // Recipes are immutable content in the JS bundle, not a database seed job.
+  // Only user-owned tables (pantry, shopping, favorites, etc.) need SQLite.
   initialized=true;
   } catch(error) {
     const details=error instanceof Error?error.message:String(error);
@@ -127,74 +126,31 @@ async function initializeSchema():Promise<void>{
     throw new Error(`SQLite startup failed during ${stage}: ${details}`);
   }
 }
-/** Versioned offline catalog, seeded transactionally while preserving user tables. */
-async function syncCatalog():Promise<void>{
-  const meta=await connection().execute('SELECT revision,recipe_count FROM catalog_meta WHERE id=1');
-  if(meta.rows.length&&Number(meta.rows[0]?.revision)===CONTENT_REVISION&&Number(meta.rows[0]?.recipe_count)===RECIPES.length)return;
-  catalogCache=null;
-  const errors=validateCatalog(RECIPES);
-  if(errors.length)throw new Error(`فهرست غذاها معتبر نیست: ${errors[0]}`);
-  await connection().transaction(async tx=>{
-    await tx.execute('DELETE FROM catalog_ingredient_alias');
-    await tx.execute('DELETE FROM catalog_recipe_search');
-    await tx.execute('DELETE FROM catalog_recipe_ingredient');
-    await tx.execute('DELETE FROM catalog_recipe_category');
-    await tx.execute('DELETE FROM catalog_recipe');
-    await tx.execute('DELETE FROM catalog_ingredient');
-    // Batch parameterized INSERTs to avoid hundreds of JSI round-trips on first launch.
-    const insertRows=async(table:string,columns:readonly string[],rows:(string|number|null)[][])=>{
-      for(let i=0;i<rows.length;i+=32){
-        const batch=rows.slice(i,i+32);
-        const values=batch.map(()=>`(${columns.map(()=>'?').join(',')})`).join(',');
-        await tx.execute(`INSERT INTO ${table}(${columns.join(',')}) VALUES ${values}`,batch.flat());
-      }
-    };
-    await insertRows('catalog_ingredient',['id','name_fa','payload'],
-      INGREDIENTS.map(item=>[item.id,item.fa,JSON.stringify(item)]));
-    await insertRows('catalog_ingredient_alias',['ingredient_id','alias','normalized_alias'],
-      INGREDIENTS.flatMap(item=>Array.from(new Set([item.fa,...item.aliases].map(alias=>normalizeFa(alias))))
-        .filter(Boolean).map(alias=>[item.id,alias,alias])));
-    await insertRows('catalog_recipe',['id','title','payload','status','source_url'],
-      RECIPES.map(item=>[item.id,item.title,JSON.stringify(item),item.contentStatus,item.provenance.url??null]));
-    await insertRows('catalog_recipe_search',['recipe_id','normalized_title'],
-      RECIPES.map(item=>[item.id,normalizeFa(item.title)]));
-    await insertRows('catalog_recipe_category',['recipe_id','category'],
-      RECIPES.flatMap(item=>item.categories.map(category=>[item.id,category])));
-    await insertRows('catalog_recipe_ingredient',['recipe_id','ingredient_id','amount','unit','essential'],
-      RECIPES.flatMap(item=>item.ingredients.map(ing=>[item.id,ing.ingredientId,ing.quantity.amount,ing.quantity.unit,ing.essential?1:0])));
-    await tx.execute('INSERT OR REPLACE INTO catalog_meta(id,revision,recipe_count) VALUES(1,?,?)',
-      [CONTENT_REVISION,RECIPES.length]);
-  });
-}
+/**
+ * Offline catalog is bundled with the app. No seed transaction is required:
+ * the previous 378-recipe import could fail during Android startup, and
+ * OP-SQLite can mask the original SQLite error during automatic ROLLBACK.
+ *
+ * Never delete legacy catalog tables here: existing user databases may have
+ * them, and this upgrade must preserve pantry, favorites, history and meals.
+ */
 export async function getCatalog():Promise<Recipe[]>{
   if(catalogCache)return catalogCache;
-  const result=await connection().execute('SELECT payload FROM catalog_recipe ORDER BY id');
-  if(!result.rows.length)throw new Error('فهرست غذاهای آفلاین خالی است');
-  const recipes:Recipe[]=result.rows.map(row=>JSON.parse(String(row.payload)) as Recipe);
-  const errors=validateCatalog(recipes);
-  if(errors.length)throw new Error(`اطلاعات دستور پخت آسیب دیده است: ${errors[0]}`);
-  catalogCache=recipes;
-  return recipes;
+  const errors=validateCatalog(RECIPES);
+  if(errors.length)throw new Error(`فهرست غذاها معتبر نیست: ${errors[0]}`);
+  catalogCache=RECIPES;
+  return catalogCache;
 }
-/** Optional page-sized DB reads for future large-list virtualized screens. */
+/** Paged access to immutable bundled content; no native SQL round trips. */
 export async function getCatalogPage(limit=24,offset=0,category?:string):Promise<Recipe[]>{
-  if(!Number.isSafeInteger(limit)||limit<1||limit>100||!Number.isSafeInteger(offset)||offset<0)throw new Error('بازه جست‌وجو نامعتبر است');
-  const query=category?'SELECT r.payload FROM catalog_recipe r JOIN catalog_recipe_category c ON c.recipe_id=r.id WHERE c.category=? ORDER BY r.title LIMIT ? OFFSET ?':'SELECT payload FROM catalog_recipe ORDER BY title LIMIT ? OFFSET ?';
-  const params=category?[category,limit,offset]:[limit,offset];
-  const result=await connection().execute(query,params);
-  return result.rows.map(row=>JSON.parse(String(row.payload)) as Recipe);
+  return pageStaticCatalog(await getCatalog(),limit,offset,category);
 }
-/** Persian-normalized, parameterized native SQLite lookup; bounded to avoid large lists. */
-export async function searchCatalogInDb(query:string,limit=24):Promise<Recipe[]>{
-  if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error('محدودیت جست‌وجو نامعتبر است');
-  const normalized=normalizeFa(query);
-  if(!normalized)return getCatalogPage(limit,0);
-  const safe=normalized.replace(/[\\%_]/g,v=>'\\'+v);
-  const rows=await connection().execute(`SELECT r.payload FROM catalog_recipe_search s
-    JOIN catalog_recipe r ON r.id=s.recipe_id WHERE s.normalized_title LIKE ? ESCAPE '\\'
-    ORDER BY s.normalized_title LIMIT ?`,[`%${safe}%`,limit]);
-  return rows.rows.map(row=>JSON.parse(String(row.payload)) as Recipe);
+/** Search Persian-normalized titles directly in the offline content. */
+export async function searchCatalog(query:string,limit=24):Promise<Recipe[]>{
+  return searchStaticCatalog(await getCatalog(),query,limit);
 }
+/** @deprecated Keep the old export for compatibility with other call sites. */
+export const searchCatalogInDb=searchCatalog;
 export async function getPantry():Promise<PantryItem[]>{
   const r=await connection().execute('SELECT * FROM pantry ORDER BY created_at DESC');
   return r.rows.map(v=>unpackPantry(v));
@@ -273,8 +229,7 @@ export async function removeShopping(itemId:string):Promise<void>{await connecti
 export async function getMeals():Promise<Meal[]>{const r=await connection().execute('SELECT * FROM meal ORDER BY day');return r.rows.map(v=>({id:String(v.id),date:String(v.day),meal:String(v.meal),recipeId:String(v.recipe_id)}));}
 export async function addMeal(day:string,meal:string,recipeId:string):Promise<void>{
   if(!isValidIsoDay(day)||!['صبحانه','ناهار','شام','میان‌وعده'].includes(meal))throw new Error('تاریخ یا وعده نامعتبر است');
-  const recipe=await connection().execute('SELECT id FROM catalog_recipe WHERE id=? LIMIT 1',[recipeId]);
-  if(!recipe.rows.length)throw new Error('غذای انتخابی در دیتابیس پیدا نشد');
+  if(!RECIPES.some(item=>item.id===recipeId))throw new Error('غذای انتخابی در فهرست آفلاین پیدا نشد');
   await connection().execute('INSERT INTO meal(id,day,meal,recipe_id) VALUES(?,?,?,?)',[id(),day,meal,recipeId]);
 }
 export async function removeMeal(idValue:string):Promise<void>{await connection().execute('DELETE FROM meal WHERE id=?',[idValue]);}
