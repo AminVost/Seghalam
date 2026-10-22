@@ -1,3 +1,13 @@
+## Latest phone-photo regression fixes — test APK 0.3.1 (2026-10-22)
+
+User installed 0.3.0 and supplied 9 real-device photos. Confirmed defects: (a) standalone headings such as `یخچال من` and `برنامه غذایی من` appeared near the LEFT edge, despite a broadly RTL main layout; (b) horizontally scrolling category filters and meal suggestions were clipped on the LEFT; (c) tour modal footer came dangerously close to/beneath Android three-button navigation; (d) pantry multiselect submission was below a lengthy 28-chip selector, not apparent without scrolling; (e) font-dependent Unicode nav glyphs looked inconsistent, and recipe thumbnails repeated one soup emoji. Also observed Play Protect **Uncommon** warning because debug-key, Telegram-sideloaded APK: this warning is NOT a definitive malware verdict; do not disable Play Protect or claim publisher identity. Official Android docs: https://developers.google.com/android/play-protect/warning-strings.
+
+0.3.1 remedies: `src/ui/CoachTour.tsx` uses insets, screen height cap and ScrollView content with fixed footer, explicitly offsets >=60dp on Android nav; `App.tsx` uses explicit RTL body/header/row containers and full-width right-aligned page headings; wraps category filters and meal choices; pins multi-selection action bar between ScrollView and bottom tabs; and uses native-View tab glyphs plus dish-relevant fallback icons. App `versionCode=4`, `versionName=0.3.1`, output `Seghalam-0.3.1-PHONE-TEST.apk`. `tests/mobile-layout-contract.test.cjs` guards main requirements. Do not regress these. Continue device screenshot QA across Android navigation styles, display sizes, Persian/English locales, high font scale and dark mode. Tests/build cannot prove pixel-level correctness.
+
+**New phone test command** after safe `git pull origin main`: `powershell -ExecutionPolicy Bypass -File .\scripts\build-phone-apk.ps1 -UseMavenMirror`. Install over existing app; NEVER clear user data or uninstall. Report actual Gradle/phone outcome; code pushes do not imply native APK compiled.
+
+---
+
 ## Latest checkpoint — Android UI overhaul, version 0.3.0 (2026-10-22)
 
 **User/device feedback:** Android phone now opens 0.2.0 without startup SQLite failure, but app RTL, UX navigation clarity, font sizing, icon clipping, multiselect, optional onboarding coach and dark theme all required improvement. 0.3.0 source implements these changes. See `docs/UX_RTL_REVIEW_2026-10-22_FA.md`.
