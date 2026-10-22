@@ -17,7 +17,9 @@ def addSeghalamMirrors = { repositories ->
                 includeGroupByRegex 'com[.]google[.]gms([.].*)?'
                 includeGroupByRegex 'com[.]google[.]firebase([.].*)?'
                 // Google Android Test Platform artifacts live in Google Maven.
-                includeGroupByRegex 'com[.]google[.]testing[.]platform'
+                includeGroupByRegex 'com[.]google[.]testing([.].*)?'
+                // The AGP CMake/Prefab toolchain resolves this from Google Maven.
+                includeGroupByRegex 'com[.]google[.]prefab([.].*)?'
                 includeGroupByRegex 'androidx([.].*)?'
             }
         }
