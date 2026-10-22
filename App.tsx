@@ -207,7 +207,7 @@ function AppBody(){
     </ScrollView>
   </SafeAreaView>;
   if(page==='tabs'&&tab==='recipes')return <SafeAreaView style={s.base} edges={['top','bottom']}>
-    <StatusBar barStyle="dark-content" backgroundColor={c.background}/>
+    <StatusBar barStyle="dark-content"/>
     {header()}
     <FlatList data={recipeList} keyExtractor={item=>item.id} renderItem={({item})=>card(item)}
       initialNumToRender={12} maxToRenderPerBatch={12} windowSize={7} removeClippedSubviews
@@ -234,7 +234,7 @@ function AppBody(){
         return found?[{recipe:found,finishedAt:record.finishedAt}]:[];
       });
     return <SafeAreaView style={s.base} edges={['top','bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={c.background}/>
+      <StatusBar barStyle="dark-content"/>
       {header()}
       <FlatList data={saved} keyExtractor={(item,index)=>`${item.recipe.id}-${index}`}
         renderItem={({item})=><SingleRecipe recipe={item.recipe} favorite={page==='favorites'} onPress={()=>showRecipe(item.recipe)}
@@ -247,7 +247,7 @@ function AppBody(){
       />
     </SafeAreaView>;
   }
-  return <SafeAreaView style={s.base} edges={['top','bottom']}><StatusBar barStyle="dark-content" backgroundColor={c.background}/>
+  return <SafeAreaView style={s.base} edges={['top','bottom']}><StatusBar barStyle="dark-content"/>
     {header()}
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
     {page==='tabs'&&tab==='home'?<>
