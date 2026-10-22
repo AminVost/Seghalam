@@ -16,6 +16,8 @@ def addSeghalamMirrors = { repositories ->
                 includeGroupByRegex 'com[.]google[.]android([.].*)?'
                 includeGroupByRegex 'com[.]google[.]gms([.].*)?'
                 includeGroupByRegex 'com[.]google[.]firebase([.].*)?'
+                // Google Android Test Platform artifacts live in Google Maven.
+                includeGroupByRegex 'com[.]google[.]testing[.]platform'
                 includeGroupByRegex 'androidx([.].*)?'
             }
         }
