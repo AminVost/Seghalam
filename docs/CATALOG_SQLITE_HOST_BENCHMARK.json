@@ -1,0 +1,20 @@
+{
+  "disclaimer": "Host Python SQLite microbenchmark only, not Android/Hermes profiling",
+  "results": {
+    "recipe-page": {
+      "median_ms": 0.0245,
+      "p95_ms": 0.0317,
+      "samples": 250
+    },
+    "ingredient-alias": {
+      "median_ms": 0.0044,
+      "p95_ms": 0.0053,
+      "samples": 240
+    },
+    "recipe-contains": {
+      "median_ms": 0.0506,
+      "p95_ms": 0.067,
+      "samples": 240
+    }
+  }
+}
