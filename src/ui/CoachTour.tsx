@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useEffect,useRef} from 'react';
 import {Animated,BackHandler,Modal,Pressable,StyleSheet,View} from 'react-native';
 import {Btn,Txt} from './atoms';
 import {useTheme} from './ThemeProvider';
@@ -11,20 +11,14 @@ const slides:{tab:TourTarget;title:string;detail:string;hint:string}[]=[
   {tab:'plan',title:'برای روزهای بعد برنامه بریز',detail:'یک تاریخ و وعده انتخاب کن و غذا را ثبت کن؛ بعداً از خانه می‌توانی سراغ خرید و آشپزی بروی.',hint:'برنامه من'},
 ];
 
-export function CoachTour({visible,onClose,onNavigate}:{visible:boolean;onClose:()=>void;onNavigate:(tab:TourTarget)=>void}){
+export function CoachTour({visible,step,onStepChange,onClose,onNavigate}:{visible:boolean;step:number;onStepChange:(step:number)=>void;onClose:()=>void;onNavigate:(tab:TourTarget)=>void}){
   const {palette:c}=useTheme();
-  const [step,setStep]=useState(0);
   const motion=useRef(new Animated.Value(0)).current;
   useEffect(()=>{
     if(!visible)return;
     motion.setValue(0);
     Animated.timing(motion,{toValue:1,duration:280,useNativeDriver:true}).start();
   },[visible,step,motion]);
-  useEffect(()=>{
-    if(visible){setStep(0);onNavigate('home');}
-    // Run only when tutorial is opened. Changes to callbacks must not reset slides.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[visible]);
   useEffect(()=>{
     if(!visible)return;
     const back=BackHandler.addEventListener('hardwareBackPress',()=>{onClose();return true;});
@@ -33,12 +27,12 @@ export function CoachTour({visible,onClose,onNavigate}:{visible:boolean;onClose:
   const next=()=>{
     if(step===slides.length-1){onClose();return;}
     const i=step+1;
-    setStep(i);
+    onStepChange(i);
     onNavigate(slides[i]!.tab);
   };
   const prev=()=>{
     if(step===0)return;
-    const i=step-1;setStep(i);onNavigate(slides[i]!.tab);
+    const i=step-1;onStepChange(i);onNavigate(slides[i]!.tab);
   };
   const current=slides[step]!;
   return <Modal transparent visible={visible} animationType="fade" statusBarTranslucent onRequestClose={onClose}>
