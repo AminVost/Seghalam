@@ -1,30 +1,43 @@
-// Optional Google Maven mirror for restricted/unstable networks.
-// Activated only by: build-phone-apk.ps1 -UseMavenMirror
-// Third-party origin: https://maven.aliyun.com/repository/google
-// Default builds use the official repositories and do not load this script.
+// Optional network fallback: Google Maven and Maven Central Aliyun mirrors.
+// This file runs ONLY when the user passes -UseMavenMirror to build-phone-apk.ps1.
+// Third-party mirrors may be less trustworthy than official repositories.
+// No global Gradle settings or dependency versions are changed.
 //
-// Attach the mirror at Gradle initialization so it is visible to the main
-// Android build AND the React Native Gradle plugin's included build.
-def addGoogleMirror = { repositories ->
+// Init-script hooks are also applied to the React Native included Gradle build.
+// Keep the Google mirror scoped: com.google.code.gson (Gson) is on Maven
+// Central, NOT Google Maven, and must resolve through the public mirror.
+def addSeghalamMirrors = { repositories ->
     if (repositories.findByName('SeghalamAliyunGoogleMirror') == null) {
         repositories.maven {
             name = 'SeghalamAliyunGoogleMirror'
-            url = new URI('https://maven.aliyun.com/repository/google')
+            url = uri('https://maven.aliyun.com/repository/google')
             content {
-                includeGroupByRegex 'com\\.android(\\..*)?'
-                includeGroupByRegex 'com\\.google(\\..*)?'
-                includeGroupByRegex 'androidx(\\..*)?'
+                includeGroupByRegex 'com[.]android([.].*)?'
+                includeGroupByRegex 'com[.]google[.]android([.].*)?'
+                includeGroupByRegex 'com[.]google[.]gms([.].*)?'
+                includeGroupByRegex 'com[.]google[.]firebase([.].*)?'
+                includeGroupByRegex 'androidx([.].*)?'
             }
+        }
+    }
+
+    // Aliyun documents /repository/public as a Maven Central proxy.
+    // This covers Kotlin, Gson, Guava, JavaPoet and their transitive
+    // dependencies; the default official repositories remain available.
+    if (repositories.findByName('SeghalamAliyunPublicMirror') == null) {
+        repositories.maven {
+            name = 'SeghalamAliyunPublicMirror'
+            url = uri('https://maven.aliyun.com/repository/public')
         }
     }
 }
 
 gradle.beforeSettings { settings ->
-    addGoogleMirror(settings.pluginManagement.repositories)
-    addGoogleMirror(settings.dependencyResolutionManagement.repositories)
+    addSeghalamMirrors(settings.pluginManagement.repositories)
+    addSeghalamMirrors(settings.dependencyResolutionManagement.repositories)
 }
 
 gradle.beforeProject { project ->
-    addGoogleMirror(project.buildscript.repositories)
-    addGoogleMirror(project.repositories)
+    addSeghalamMirrors(project.buildscript.repositories)
+    addSeghalamMirrors(project.repositories)
 }
