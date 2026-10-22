@@ -1,3 +1,20 @@
+## Latest checkpoint — Android UI overhaul, version 0.3.0 (2026-10-22)
+
+**User/device feedback:** Android phone now opens 0.2.0 without startup SQLite failure, but app RTL, UX navigation clarity, font sizing, icon clipping, multiselect, optional onboarding coach and dark theme all required improvement. 0.3.0 source implements these changes. See `docs/UX_RTL_REVIEW_2026-10-22_FA.md`.
+
+**Important invariants:**
+- Persian-only interface uses native Android RTL already enabled in `MainApplication.kt` PLUS root `direction:'rtl'` and `flexDirection:'row'`. Do not reintroduce `row-reverse` with native RTL; header/tab/sheet layout will be reversed twice. Test on both Persian- and English-locale Android phones.
+- `ThemeProvider` + `src/ui/theme.ts` owns semantic light/dark/system tokens. New screens/components must use `useTheme()`; do not import static `palette` for newly themed UI. Persist selection via `src/storage/db.ts` key `ui_theme`.
+- Onboarding tour is optional. `CoachTour` is animated and takes a **controlled step** from AppBody so switching to the FlatList recipes view doesn't reset it. Do not block first use or override user choice to skip.
+- Pantry and shopping multi-select explicitly preserve unknown amount `NULL` and use atomic SQLite transactions, skipping existing items; no silent quantity invention. User data must survive same-signed version upgrades.
+- `App.tsx` currently owns multiple app flows; future work can split into screens but must preserve storage and state semantics.
+- New test APK is `Seghalam-0.3.0-PHONE-TEST.apk`, Gradle versionCode 3. Sign with the original debug key for upgrades. Never uninstall the previous app or clear app storage when smoke-testing.
+- GitHub Actions `mobile-source-checks.yml` executes React Native `npm run typecheck` and complete `npm run test:all`. Host success does **not** equal real Android screenshot, RTL or native-device coverage. Need actual phone tests on multiple sizes, locales, themes and update/fresh install paths.
+
+**Next:** User should run `git pull origin main`, `powershell -ExecutionPolicy Bypass -File .\scripts\build-phone-apk.ps1 -UseMavenMirror`; install 0.3 APK over 0.2 without clearing data. Verify all acceptance scenarios in the UX report. Recipes remain 378 unreviewed drafts, not ready for public distribution.
+
+---
+
 ## Latest checkpoint — Android first-launch SQLite fix (2026-10-22)
 
 **Architecture invariant:** 378 recipes and 236 ingredient definitions are immutable bundled content in `src/data/*`. Never reintroduce `syncCatalog()` / catalog seeding into the mobile SQLite database on app startup. `src/domain/staticCatalog.ts` implements bounded search and paging, `src/storage/db.ts` returns bundled `RECIPES`, and `addMeal` validates bundled IDs. Persist ONLY user-owned, mutable data (pantry, shopping, favorites, history, meals, sessions, settings) in OP-SQLite `seghalam.sqlite`. Preserve schema v6 and preexisting `catalog_*` tables non-destructively. See `docs/DATABASE_SCHEMA.md`.
