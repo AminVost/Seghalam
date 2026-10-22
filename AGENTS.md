@@ -1,3 +1,15 @@
+## Latest checkpoint — Android first-launch SQLite fix (2026-10-22)
+
+**Architecture invariant:** 378 recipes and 236 ingredient definitions are immutable bundled content in `src/data/*`. Never reintroduce `syncCatalog()` / catalog seeding into the mobile SQLite database on app startup. `src/domain/staticCatalog.ts` implements bounded search and paging, `src/storage/db.ts` returns bundled `RECIPES`, and `addMeal` validates bundled IDs. Persist ONLY user-owned, mutable data (pantry, shopping, favorites, history, meals, sessions, settings) in OP-SQLite `seghalam.sqlite`. Preserve schema v6 and preexisting `catalog_*` tables non-destructively. See `docs/DATABASE_SCHEMA.md`.
+
+**Why:** First real-device APK build succeeded but startup failed during mass recipe catalog seeding with `cannot rollback - no transaction is active`. OP-SQLite can mask original transaction errors (https://github.com/OP-Engineering/op-sqlite/issues/462, another version). Avoiding unnecessary mass import is the root architectural mitigation; the precise underlying native cause remains unverified. Do not claim all-device compatibility without Android instrumentation tests.
+
+**Evidence:** 65 previous Node tests + 7 static catalog tests + 2 mocked storage-init tests PASS, plus Python SQLite host schema and migration checks. React Native typecheck and APK build succeeded on the user's Windows host *before* the startup patch; the newly revised APK needs rebuilding and device validation. All 378 recipe drafts remain unreviewed; `npm run audit:content` must fail until proper editorial signoff.
+
+**Next action:** `git pull origin main`, `npm run typecheck`, `npm run test:all`, `powershell -ExecutionPolicy Bypass -File .\scripts\build-phone-apk.ps1 -UseMavenMirror`, install over the previously signed APK **without clearing app data**, verify first launch + pantry + favorites + meal planning and persistence. When testing on additional devices, include new install and update migration. Never delete user storage as the first troubleshooting step.
+
+---
+
 ## Latest checkpoint — UI/flow audit, 2026-10-20
 
 Use `docs/FINAL_QA_REVIEW_FA.md` as the current audit. Current source version: 0.2.0, SQLite schema v6; first-run and v5→v6 migrations must preserve user data and session servings. UI lists use FlatList and pantry includes storage place. Test: `npm run test:all`; release content gate: `npm run audit:content` (MUST FAIL while 378 recipes remain drafts). Android APK/React Native typecheck not verified. Do not claim store readiness. Do not silently mark drafts as reviewed. Keep metadata status and source links intact.
