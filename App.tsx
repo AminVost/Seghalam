@@ -109,7 +109,7 @@ function AppBody(){
         if(alive){setOnboardingVisible(!completed);setReady(true);}
       }catch(e){
         const details=e instanceof Error?`${e.name}: ${e.message}`:String(e);
-        const report=`Seghalam 0.3.0 startup failure\nPhase: ${phase}\n${details}`;
+        const report=`Seghalam 0.3.1 startup failure\nPhase: ${phase}\n${details}`;
         console.error('[Seghalam startup]',report,e);
         if(alive)setFatal(report);
       }
