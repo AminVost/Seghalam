@@ -1,0 +1,8 @@
+<resources>
+  <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <item name="android:windowLightStatusBar">true</item>
+    <item name="android:statusBarColor">#FAF7EF</item>
+    <item name="android:navigationBarColor">#FAF7EF</item>
+    <item name="android:windowActionModeOverlay">true</item>
+  </style>
+</resources>
