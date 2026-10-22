@@ -69,7 +69,31 @@ function AppBody(){
     const [p,sh,f,m,h,se,diet]=await Promise.all([db.getPantry(),db.getShopping(),db.getFavorites(),db.getMeals(),db.getHistory(),db.getSession(),db.getAllergenPreferences()]);
     setPantry(p);setShopping(sh);setFavorites(f);setMeals(m);setHistory(h);setSession(se);setExcludedAllergens(diet);
   };
-  useEffect(()=>{let alive=true;const boot=async()=>{try{setFatal('');await db.initializeDatabase();const localRecipes=await db.getCatalog();setCatalog(localRecipes);await refresh();const completed=await db.getOnboardingCompleted();if(alive){setOnboardingVisible(!completed);setReady(true);}}catch(e){if(alive)setFatal(String(e));}};void boot();return()=>{alive=false;};},[retryIndex]);
+  useEffect(()=>{
+    let alive=true;
+    const boot=async()=>{
+      let phase='Opening and migrating SQLite';
+      try {
+        setFatal('');
+        await db.initializeDatabase();
+        phase='Reading the offline recipe catalog';
+        const localRecipes=await db.getCatalog();
+        setCatalog(localRecipes);
+        phase='Reading pantry, preferences, and saved items';
+        await refresh();
+        phase='Checking onboarding settings';
+        const completed=await db.getOnboardingCompleted();
+        if(alive){setOnboardingVisible(!completed);setReady(true);}
+      }catch(e){
+        const details=e instanceof Error?`${e.name}: ${e.message}`:String(e);
+        const report=`Seghalam 0.2.0 startup failure\\nPhase: ${phase}\\n${details}`;
+        console.error('[Seghalam startup]',report,e);
+        if(alive)setFatal(report);
+      }
+    };
+    void boot();
+    return()=>{alive=false;};
+  },[retryIndex]);
   useEffect(()=>{
     if(page!=='cook'||!session?.endAt)return;
     setTimerNow(Date.now());
@@ -191,7 +215,14 @@ function AppBody(){
   const categories=(scope:'home'|'recipes')=> <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categories} style={{flexGrow:0}}>
     {([['','همه'],['iranian','🍲 ایرانی'],['light','🥗 سبک'],['snack','🥣 میان‌وعده'],['fastfood','🥪 فست‌فود']] as [Category|'',string][]).map(([id,label])=><Pressable key={id} accessibilityRole="button" accessibilityState={{selected:(scope==='home'?homeFilter:recipeFilter)===id}} onPress={()=>scope==='home'?setHomeFilter(id):setRecipeFilter(id)} style={[s.chip,(scope==='home'?homeFilter:recipeFilter)===id&&s.chipActive]}><Txt style={{color:(scope==='home'?homeFilter:recipeFilter)===id?'#fff':c.dark,fontSize:13}}>{label}</Txt></Pressable>)}
   </ScrollView>;
-  if(fatal)return <SafeAreaView style={[s.base,{justifyContent:'center',padding:20}]}><Panel><Txt big>خطا در آماده‌سازی اطلاعات</Txt><Txt muted>به اطلاعات این گوشی دسترسی پیدا نکردیم. برنامه را دوباره امتحان کن. اگر مشکل ادامه داشت از اطلاعات برنامه نسخه پشتیبان تهیه کن؛ اطلاعات برنامه را پاک نکن.</Txt><Btn onPress={()=>setRetryIndex(v=>v+1)}>تلاش مجدد</Btn></Panel></SafeAreaView>;
+  if(fatal)return <SafeAreaView style={[s.base,{justifyContent:'center',padding:20}]}><Panel>
+    <Txt big>خطا در آماده‌سازی اطلاعات</Txt>
+    <Txt muted>راه‌اندازی اطلاعات محلی کامل نشد. فعلاً اطلاعات برنامه را پاک نکن.</Txt>
+    <Txt weight>جزئیات خطا برای عیب‌یابی:</Txt>
+    <ScrollView style={{maxHeight:175}}><Txt style={{fontSize:12,lineHeight:22,textAlign:'left',writingDirection:'ltr'}}>{fatal}</Txt></ScrollView>
+    <Btn secondary onPress={()=>void Share.share({message:fatal}).catch(()=>Alert.alert('خطا','امکان اشتراک گزارش وجود ندارد.'))}>اشتراک گزارش خطا</Btn>
+    <Btn onPress={()=>setRetryIndex(v=>v+1)}>تلاش مجدد</Btn>
+  </Panel></SafeAreaView>;
   if(!ready)return <SafeAreaView style={s.base}><Loading/></SafeAreaView>;
   if(onboardingVisible)return <SafeAreaView style={s.base} edges={['top','bottom']}>
     <ScrollView contentContainerStyle={[s.body,{flexGrow:1,justifyContent:'center'}]}>
