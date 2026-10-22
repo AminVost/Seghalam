@@ -85,29 +85,15 @@ async function initializeSchema():Promise<void>{
     });
   }
   stage='creating catalog tables (v4)';
+  // Versions 4 and 5 previously introduced duplicated catalog tables.
+  // Keep version history compatible, but do not create unused catalog tables
+  // on fresh installs. Existing legacy tables remain untouched on upgrades.
   if(version<4){
-    await connection().transaction(async tx=>{
-      await tx.execute('CREATE TABLE IF NOT EXISTS catalog_ingredient (id TEXT PRIMARY KEY, name_fa TEXT NOT NULL, payload TEXT NOT NULL)');
-      await tx.execute(`CREATE TABLE IF NOT EXISTS catalog_recipe (id TEXT PRIMARY KEY, title TEXT NOT NULL, payload TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('draft','reviewed')), source_url TEXT)`);
-      await tx.execute('CREATE TABLE IF NOT EXISTS catalog_recipe_category (recipe_id TEXT NOT NULL REFERENCES catalog_recipe(id) ON DELETE CASCADE, category TEXT NOT NULL, PRIMARY KEY(recipe_id,category))');
-      await tx.execute('CREATE TABLE IF NOT EXISTS catalog_recipe_ingredient (recipe_id TEXT NOT NULL REFERENCES catalog_recipe(id) ON DELETE CASCADE, ingredient_id TEXT NOT NULL REFERENCES catalog_ingredient(id), amount REAL NOT NULL CHECK(amount>0), unit TEXT NOT NULL, essential INTEGER NOT NULL CHECK(essential IN (0,1)), PRIMARY KEY(recipe_id,ingredient_id))');
-      await tx.execute('CREATE TABLE IF NOT EXISTS catalog_meta (id INTEGER PRIMARY KEY CHECK(id=1),revision INTEGER NOT NULL, recipe_count INTEGER NOT NULL)');
-      await tx.execute('CREATE INDEX IF NOT EXISTS idx_catalog_category ON catalog_recipe_category(category,recipe_id)');
-      await tx.execute('CREATE INDEX IF NOT EXISTS idx_catalog_required ON catalog_recipe_ingredient(ingredient_id,recipe_id)');
-      await tx.execute('INSERT OR REPLACE INTO schema_meta(id,version) VALUES(1,4)');
-    });
+    await connection().execute('INSERT OR REPLACE INTO schema_meta(id,version) VALUES(1,4)');
   }
-  stage='creating catalog search tables (v5)';
   if(version<5){
-    await connection().transaction(async tx=>{
-      await tx.execute('CREATE TABLE IF NOT EXISTS catalog_ingredient_alias (ingredient_id TEXT NOT NULL REFERENCES catalog_ingredient(id) ON DELETE CASCADE, alias TEXT NOT NULL, normalized_alias TEXT NOT NULL, PRIMARY KEY(ingredient_id,normalized_alias))');
-      await tx.execute('CREATE INDEX IF NOT EXISTS idx_catalog_alias_norm ON catalog_ingredient_alias(normalized_alias)');
-      await tx.execute('CREATE TABLE IF NOT EXISTS catalog_recipe_search (recipe_id TEXT PRIMARY KEY REFERENCES catalog_recipe(id) ON DELETE CASCADE, normalized_title TEXT NOT NULL)');
-      await tx.execute('CREATE INDEX IF NOT EXISTS idx_catalog_search_title ON catalog_recipe_search(normalized_title)');
-      await tx.execute('INSERT OR REPLACE INTO schema_meta(id,version) VALUES(1,5)');
-    });
+    await connection().execute('INSERT OR REPLACE INTO schema_meta(id,version) VALUES(1,5)');
   }
-  stage='migrating cooking sessions (v6)';
   if(version<6){
     await connection().transaction(async tx=>{
       // Pre-v6 sessions had no portion count; zero means use the source recipe default.
@@ -116,7 +102,6 @@ async function initializeSchema():Promise<void>{
     });
   }
   stage='creating recipe title index';
-  await connection().execute('CREATE INDEX IF NOT EXISTS idx_catalog_title ON catalog_recipe(title)');
   // Recipes are immutable content in the JS bundle, not a database seed job.
   // Only user-owned tables (pantry, shopping, favorites, etc.) need SQLite.
   initialized=true;
