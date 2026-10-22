@@ -10,7 +10,7 @@ def addSeghalamMirrors = { repositories ->
     if (repositories.findByName('SeghalamAliyunGoogleMirror') == null) {
         repositories.maven {
             name = 'SeghalamAliyunGoogleMirror'
-            url = uri('https://maven.aliyun.com/repository/google')
+            url = new URI('https://maven.aliyun.com/repository/google')
             content {
                 includeGroupByRegex 'com[.]android([.].*)?'
                 includeGroupByRegex 'com[.]google[.]android([.].*)?'
@@ -27,7 +27,7 @@ def addSeghalamMirrors = { repositories ->
     if (repositories.findByName('SeghalamAliyunPublicMirror') == null) {
         repositories.maven {
             name = 'SeghalamAliyunPublicMirror'
-            url = uri('https://maven.aliyun.com/repository/public')
+            url = new URI('https://maven.aliyun.com/repository/public')
         }
     }
 }
