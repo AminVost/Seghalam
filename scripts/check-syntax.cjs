@@ -3,7 +3,7 @@ const ts=require('typescript');
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.join(__dirname,'..');
-const paths=['App.tsx', 'src/ui/atoms.tsx','src/ui/theme.ts','src/storage/db.ts'];
+const paths=['App.tsx','src/ui/atoms.tsx','src/ui/theme.ts','src/ui/ThemeProvider.tsx','src/ui/CoachTour.tsx','src/domain/staticCatalog.ts','src/storage/db.ts'];
 let count=0;
 for(const relative of paths){
  const filename=path.join(root,relative);
