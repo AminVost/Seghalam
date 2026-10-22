@@ -35,7 +35,7 @@ export function searchStaticCatalog(
     throw new Error('محدودیت جست‌وجو نامعتبر است');
   }
   const needle = normalizeFa(query);
-  if (!needle) return pageStaticCatalog(catalog, limit, 0);
+  if (!needle) return query.trim() ? [] : pageStaticCatalog(catalog, limit, 0);
   return catalog
     .filter(item => normalizeFa(item.title).includes(needle))
     .sort((a, b) => a.title.localeCompare(b.title, 'fa') || a.id.localeCompare(b.id))
