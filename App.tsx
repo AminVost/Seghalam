@@ -35,14 +35,14 @@ function SingleRecipe({recipe,onPress,favorite,status,subtitle}: {recipe:Recipe;
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${recipe.title}، ${total} دقیقه${status?`، ${status}`:''}`}
     style={({pressed})=>[s.recipeCard,pressed&&{opacity:0.78,transform:[{scale:0.99}]}]}>
     <View style={[s.dishIcon,{backgroundColor:tint[category]}]}><Txt style={{fontSize:25,lineHeight:47,includeFontPadding:true,textAlign:'center'}}>{emoji[category]}</Txt></View>
-    <View style={{flex:1,gap:5}}>
-      <Txt weight style={{color:c.dark,fontSize:15}}>{recipe.title}{favorite?'  ♥':''}</Txt>
+    <View style={{flex:1,flexShrink:1,gap:4}}>
+      <Txt weight style={{color:c.dark,fontSize:13}}>{recipe.title}{favorite?'  ♥':''}</Txt>
       <Txt muted style={{fontSize:12}}>{fmt(total)} دقیقه  •  {fmt(recipe.servings)} نفر  •  {categoryTitle[category]}</Txt>
       {subtitle?<Txt muted style={{fontSize:12}}>{subtitle}</Txt>:null}
       {status?<View style={[s.statusPill,{backgroundColor:uncertainty?'#FFF0E4':'#E4F0E6'}]}>
         <Txt style={{color:uncertainty?'#954A20':c.green,fontSize:11}}>{status}</Txt></View>:null}
     </View>
-    <View style={s.cardArrow}><Txt weight style={{color:c.green}}>‹</Txt></View>
+    <View style={s.cardArrow}><Txt weight style={{color:c.dark,fontSize:18}}>‹</Txt></View>
   </Pressable>;
 }
 export default function App(){return <SafeAreaProvider><ThemeProvider><AppBody/></ThemeProvider></SafeAreaProvider>;}
@@ -240,7 +240,10 @@ function AppBody(){
       <View style={{flex:1,gap:0}}><Txt weight style={{color:c.dark,fontSize:16}}>سه‌قلم غذا</Txt>
         <Txt muted style={{fontSize:11}}>ببین چی داری، بگو چی بپزی!</Txt></View>
       {page!=='tabs'?<Pressable accessibilityRole="button" accessibilityLabel="بازگشت" onPress={()=>{setPage(page==='cook'?'detail':'tabs');Keyboard.dismiss();}}
-        style={s.backButton}><Txt weight style={{color:c.dark,fontSize:14}}>بازگشت  ‹</Txt></Pressable>:null}
+        style={s.backButton}><Txt weight style={{color:c.dark,fontSize:12}}>بازگشت ‹</Txt></Pressable>:
+        <Pressable accessibilityRole="button" accessibilityLabel="نمایش راهنمای برنامه" onPress={openTour} style={s.backButton}>
+          <Txt weight style={{color:c.dark,fontSize:12}}>راهنما ؟</Txt>
+        </Pressable>}
     </View>
   </View>;
   const categories=(scope:'home'|'recipes')=> <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categories} style={{flexGrow:0}}>
@@ -272,7 +275,7 @@ function AppBody(){
     <StatusBar barStyle={isDark?"light-content":"dark-content"}/>
     {header()}
     <FlatList data={recipeList} keyExtractor={item=>item.id} renderItem={({item})=>card(item)}
-      initialNumToRender={12} maxToRenderPerBatch={12} windowSize={7} removeClippedSubviews
+      initialNumToRender={12} maxToRenderPerBatch={12} windowSize={7} 
       keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
       contentContainerStyle={[s.body,{gap:11}]}
       ListHeaderComponent={<View style={{gap:13}}>
@@ -316,27 +319,30 @@ function AppBody(){
     {page==='tabs'&&tab==='home'?<>
       <View style={s.hero}>
         <View pointerEvents="none" style={s.heroOrb}/><View pointerEvents="none" style={s.heroOrbSmall}/>
-        <Txt style={{color:c.saffron,fontSize:12,fontWeight:'700'}}>سه‌قلم | آشپزی هوشمند و آفلاین</Txt>
+        <Txt style={{color:c.saffron,fontSize:12,fontWeight:'700'}}>سه‌قلم غذا • بدون اینترنت</Txt>
         <Txt style={{color:'#FFF',fontSize:25,fontWeight:'800',lineHeight:39}}>امروز چی بپزیم؟</Txt>
-        <Txt style={{color:'#EBF4EB',fontSize:14}}>مواد خونه رو انتخاب کن، بقیه‌ش با ما!</Txt>
+        <Txt style={{color:'#EBF4EB',fontSize:12,lineHeight:23}}>{pantry.length?'موجودی‌ات ثبت شده؛ پیشنهادهای پایین را ببین.':'قدم اول: مواد موجود در خانه را ثبت کن.'}</Txt>
         <Pressable accessibilityRole="button" accessibilityLabel="رفتن به یخچال من" onPress={()=>setTab('pantry')} style={s.heroButton}>
-          <Txt weight style={{color:c.deep}}>ثبت مواد غذایی  ←</Txt></Pressable>
+          <Txt weight style={{color:c.deep,fontSize:12}}>{pantry.length?'ویرایش موجودی  ←':'۱. ثبت مواد غذایی  ←'}</Txt></Pressable>
       </View>
       {session?<Btn secondary onPress={()=>{const r=catalog.find(x=>x.id===session.recipeId);if(r){setRecipe(r);setServings(effectiveCookingServings(session.servings,r.servings));setCookStep(clampedCookingStep(session.step,r.steps.length));setPage('cook');}}}>ادامه آشپزی ناتمام ←</Btn>:null}
       <View style={s.overview}><View><Txt big style={{color:c.dark}}>{fmt(new Set(pantry.map(x=>x.ingredientId)).size)}</Txt><Txt muted>نوع ماده در خانه</Txt></View><View><Txt big style={{color:c.dark}}>{fmt(suggestions.filter(x=>x.status==='ready').length)}</Txt><Txt muted>غذای آماده پخت</Txt></View></View>
-      <View style={s.sectionTitle}><Txt big style={{color:c.dark}}>با این مواد چی بپزم؟</Txt><Txt muted>پیشنهاد بر اساس موجودی</Txt></View>
+      <View style={s.sectionTitle}><Txt big style={{color:c.dark}}>۲. پیشنهاد غذا</Txt><Txt muted>براساس موجودی</Txt></View>
       <TextInput value={query} onChangeText={setQuery} placeholder="مثلاً مرغ و سیب‌زمینی دارم، زیر ۳۰ دقیقه" placeholderTextColor={c.secondary} style={s.input} textAlign="right" accessibilityLabel="جستجوی هوشمند فارسی"/>
       {intent.excludedIds.length?<Txt muted>مواد حذف‌شده: {intent.excludedIds.map(i=>BY_ID.get(i)?.fa).join('، ')}</Txt>:null}
-      {pantry.length===0&&!query?<Panel><Txt>هنوز هیچ ماده‌ای ثبت نکردی. برای پیشنهاد دقیق، چند ماده اضافه کن.</Txt><Btn onPress={()=>setTab('pantry')}>افزودن مواد غذایی</Btn></Panel>:null}
+      {pantry.length===0&&!query?<Panel><Txt weight>هنوز موجودی خالی است</Txt><Txt muted>از «یخچال من» چند ماده ثبت کن؛ می‌توانی چند ماده را همزمان انتخاب کنی.</Txt><Btn onPress={()=>setTab('pantry')}>رفتن به یخچال من</Btn></Panel>:null}
       {categories('home')}
       {visibleSuggestions.length===0&&(pantry.length>0||query.trim())?<Panel><Txt muted>با مواد ثبت‌شده غذای قابل تهیه قطعی یا احتمالی پیدا نشد. می‌توانی موجودی را تکمیل کنی یا از بخش دستورها، مواد کمبود را ببینی.</Txt><Btn secondary onPress={()=>setTab('recipes')}>دیدن همه دستورها</Btn></Panel>:null}
       {visibleSuggestions.map(x=><SingleRecipe key={x.recipe.id} recipe={x.recipe} status={({ready:'● آماده پخت',uncertain:'◐ مقدار نامشخص',missing:'＋ چند قلم کم داری',substituted:'↔ جایگزین'} as Record<string,string>)[x.status]}
         subtitle={x.explanation} onPress={()=>showRecipe(x.recipe)}/>)}
-      <View style={s.two}><Btn secondary onPress={()=>setPage('shopping')}>فهرست خرید</Btn><Btn secondary onPress={()=>setPage('favorites')}>علاقه‌مندی‌ها</Btn></View>
-      <View style={s.two}><Btn secondary onPress={()=>setPage('history')}>سابقه آشپزی</Btn><Btn secondary onPress={()=>setPage('settings')}>تنظیمات و محدودیت‌ها</Btn></View>
+      <Panel><Txt weight>۳. برنامه‌ریزی و پیگیری</Txt>
+        <Txt muted>فهرست خرید، علاقه‌مندی‌ها و آشپزی‌های قبلی اینجا هستند.</Txt>
+        <View style={s.two}><Btn secondary onPress={()=>setPage('shopping')}>فهرست خرید</Btn><Btn secondary onPress={()=>setPage('favorites')}>علاقه‌مندی‌ها</Btn></View>
+        <View style={s.two}><Btn secondary onPress={()=>setPage('history')}>سابقه آشپزی</Btn><Btn secondary onPress={()=>setPage('settings')}>تنظیمات</Btn></View>
+      </Panel>
     </>:null}
     {page==='tabs'&&tab==='pantry'?<>
-      <Txt big>یخچال من</Txt><Txt muted>مواد را با مقدار دقیق یا بدون مقدار ثبت کن؛ چیزی خودکار موجود فرض نمی‌شود.</Txt>
+      <Txt big>یخچال من</Txt><Txt muted>۱. جست‌وجو  •  ۲. انتخاب ماده یا چند ماده  •  ۳. ثبت موجودی</Txt>
       <Panel>
         <View style={s.spread}>
           <Txt weight>{editingPantryId?'ویرایش ماده':'انتخاب مواد غذایی'}</Txt>
@@ -384,7 +390,7 @@ function AppBody(){
       <Panel><Txt weight>برنامه‌ریزی وعده</Txt>
         <TextInput value={planDay} onChangeText={setPlanDay} style={s.input} placeholder="تاریخ شمسی: ۱۴۰۵/۰۷/۲۸" placeholderTextColor={c.secondary} textAlign="right"/>
         <View style={s.wrap}>{['صبحانه','ناهار','شام','میان‌وعده'].map(v=><Pressable key={v} accessibilityRole="button" accessibilityState={{selected:planSlot===v}} style={[s.smallChip,planSlot===v&&s.selectedChip]} onPress={()=>setPlanSlot(v)}><Txt style={{color:planSlot===v?'#fff':c.dark}}>{v}</Txt></Pressable>)}</View>
-        <Txt muted>غذا را انتخاب کن:</Txt>
+        <Txt weight>انتخاب غذا برای این وعده</Txt>
         <TextInput value={planSearch} onChangeText={text=>{setPlanSearch(text);setPlanRecipe('');}} style={s.input} textAlign="right" placeholder="جست‌وجوی غذا برای برنامه غذایی" placeholderTextColor={c.secondary}/>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow:0}} contentContainerStyle={{gap:8}}>{planCandidates.map(r=><Pressable key={r.id} accessibilityRole="button" accessibilityLabel={r.title} accessibilityState={{selected:planRecipe===r.id}} onPress={()=>setPlanRecipe(r.id)} style={[s.smallChip,planRecipe===r.id&&s.selectedChip]}><Txt style={{fontSize:12,color:planRecipe===r.id?'#fff':c.dark}}>{r.title}</Txt></Pressable>)}</ScrollView>
         <Txt muted>{planRecipe?`غذای انتخابی: ${catalog.find(r=>r.id===planRecipe)?.title??'انتخاب نشده'}`:'برای ثبت، یکی از غذاهای نمایش‌داده‌شده را انتخاب کن.'}</Txt>
@@ -492,20 +498,20 @@ function AppBody(){
 }
 const createStyles=(c:Palette)=>StyleSheet.create({
   base:{flex:1,backgroundColor:c.background,direction:'rtl'},
-  header:{paddingHorizontal:18,paddingVertical:11,borderBottomWidth:1,borderBottomColor:c.line,backgroundColor:c.surface},
+  header:{paddingHorizontal:15,paddingVertical:9,borderBottomWidth:1,borderBottomColor:c.line,backgroundColor:c.surface},
   backButton:{paddingHorizontal:13,paddingVertical:8,minHeight:45,justifyContent:'center',borderRadius:13,backgroundColor:c.pale},
-  body:{paddingHorizontal:17,paddingTop:19,paddingBottom:36,gap:14,width:'100%',maxWidth:720,alignSelf:'center'},
+  body:{paddingHorizontal:15,paddingTop:15,paddingBottom:30,gap:12,width:'100%',maxWidth:720,alignSelf:'center'},
   hero:{backgroundColor:c.deep,borderRadius:24,padding:21,minHeight:188,gap:8,justifyContent:'center',overflow:'hidden',elevation:3},
   heroOrb:{position:'absolute',height:170,width:170,borderRadius:85,right:-50,top:-60,backgroundColor:'#2F624C'},
   heroOrbSmall:{position:'absolute',height:100,width:100,borderRadius:50,right:22,bottom:-67,backgroundColor:'#4A7754'},
   heroButton:{backgroundColor:c.saffron,borderRadius:15,alignSelf:'flex-end',minHeight:48,justifyContent:'center',paddingVertical:9,paddingHorizontal:19,marginTop:11},
-  overview:{flexDirection:'row',justifyContent:'space-around',paddingVertical:18,paddingHorizontal:12,backgroundColor:c.pale,borderRadius:22,alignItems:'center',borderWidth:1,borderColor:c.line},
+  overview:{flexDirection:'row',justifyContent:'space-around',paddingVertical:14,paddingHorizontal:10,backgroundColor:c.pale,borderRadius:22,alignItems:'center',borderWidth:1,borderColor:c.line},
   sectionTitle:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8},
   input:{fontFamily:'Vazirmatn-Regular',backgroundColor:c.surface,borderWidth:1,borderColor:c.line,borderRadius:13,minHeight:46,paddingHorizontal:13,fontSize:13,color:c.text,writingDirection:'rtl',textAlign:'right',includeFontPadding:true},
   recipeCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:c.surface,padding:13,borderRadius:22,borderWidth:1,borderColor:c.line,minHeight:94},
   dishIcon:{width:60,height:60,borderRadius:18,alignItems:'center',justifyContent:'center',overflow:'visible'},
   cardArrow:{width:24,height:35,alignItems:'center',justifyContent:'center'},
-  statusPill:{borderRadius:10,paddingVertical:4,paddingHorizontal:9,alignSelf:'flex-end'},
+  statusPill:{borderRadius:10,paddingVertical:3,paddingHorizontal:9,alignSelf:'flex-start'},
   chip:{backgroundColor:c.pale,borderRadius:22,paddingVertical:10,paddingHorizontal:15,minHeight:43,justifyContent:'center'},
   chipActive:{backgroundColor:c.green},categories:{gap:8,paddingVertical:4},
   wrap:{flexDirection:'row',flexWrap:'wrap',gap:8},
@@ -513,8 +519,8 @@ const createStyles=(c:Palette)=>StyleSheet.create({
   selectedChip:{backgroundColor:c.green,borderColor:c.green},
   spread:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'},
   two:{flexDirection:'row',gap:10,justifyContent:'space-around',flexWrap:'wrap',alignItems:'center'},
-  tabs:{flexDirection:'row',padding:7,backgroundColor:c.surface,borderTopWidth:1,borderTopColor:c.line,minHeight:72},
-  tab:{flex:1,alignItems:'center',justifyContent:'center',padding:4,borderRadius:15,minHeight:55,gap:1},
+  tabs:{flexDirection:'row',padding:6,backgroundColor:c.surface,borderTopWidth:1,borderTopColor:c.line,minHeight:66,direction:'rtl'},
+  tab:{flex:1,alignItems:'center',justifyContent:'center',padding:3,borderRadius:13,minHeight:52,gap:1},
   tabActive:{backgroundColor:c.pale,borderBottomWidth:2,borderBottomColor:c.green},
   detailHero:{backgroundColor:c.pale,borderRadius:25,paddingVertical:29,paddingHorizontal:20,gap:12},
   cookingPanel:{backgroundColor:c.surface,borderRadius:24,padding:18,alignItems:'stretch',minHeight:210,gap:17,justifyContent:'center',borderWidth:1,borderColor:c.line},
