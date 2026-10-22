@@ -24,6 +24,35 @@ type Page='tabs'|'detail'|'cook'|'shopping'|'favorites'|'history'|'settings';
 const categoryTitle:Record<Category,string>={iranian:'ایرانی و خانگی',light:'غذاهای سبک و سبزیجاتی',snack:'میان‌وعده',fastfood:'فست‌فود خانگی'};
 const fmt=(v:number)=>new Intl.NumberFormat('fa-IR').format(v);
 const today=()=>localIsoDay();
+const tabTitle:Record<Tab,string>={home:'خانه',pantry:'یخچال من',recipes:'دستورها',plan:'برنامه من'};
+/** Draw tab icons with native Views instead of font-dependent Unicode glyphs.
+ * Symbols rendered inconsistently on the first Samsung screenshots.
+ */
+function NavGlyph({tab,color}:{tab:Tab;color:string}){
+  if(tab==='home')return <View style={{width:24,height:25,alignItems:'center',justifyContent:'center'}}>
+    <View style={{width:13,height:13,borderTopWidth:1.8,borderLeftWidth:1.8,borderColor:color,
+      transform:[{rotate:'45deg'}],marginTop:2}}/>
+    <View style={{position:'absolute',top:11,width:15,height:12,borderWidth:1.8,borderTopWidth:0,
+      borderColor:color,borderBottomLeftRadius:2,borderBottomRightRadius:2}}/>
+  </View>;
+  if(tab==='pantry')return <View style={{width:20,height:22,borderWidth:1.8,borderColor:color,borderRadius:4,
+    alignItems:'center',justifyContent:'center'}}>
+    <View style={{position:'absolute',top:8,left:0,right:0,borderTopWidth:1.5,borderColor:color}}/>
+    <View style={{position:'absolute',top:3,right:3,width:3,height:2,backgroundColor:color,borderRadius:1}}/>
+    <View style={{position:'absolute',bottom:3,right:3,width:3,height:2,backgroundColor:color,borderRadius:1}}/>
+  </View>;
+  if(tab==='recipes')return <View style={{width:24,height:22,justifyContent:'space-around',paddingVertical:3}}>
+    {[0,1,2].map(i=><View key={i} style={{flexDirection:'row',alignItems:'center',gap:4}}>
+      <View style={{width:4,height:4,borderRadius:1,backgroundColor:color}}/>
+      <View style={{height:2,flex:1,borderRadius:1,backgroundColor:color}}/>
+    </View>)}
+  </View>;
+  return <View style={{width:22,height:21,borderWidth:1.8,borderColor:color,borderRadius:3,
+    overflow:'hidden',justifyContent:'center',paddingHorizontal:3}}>
+    <View style={{position:'absolute',top:4,left:0,right:0,borderTopWidth:2,borderColor:color}}/>
+    <View style={{width:5,height:4,borderRadius:1,backgroundColor:color,marginTop:5}}/>
+  </View>;
+}
 function SingleRecipe({recipe,onPress,favorite,status,subtitle}: {recipe:Recipe;onPress:()=>void;favorite?:boolean;status?:string;subtitle?:string}){
   const {palette:c}=useTheme();
   const s=useMemo(()=>createStyles(c),[c]);
@@ -241,9 +270,15 @@ function AppBody(){
     return <SingleRecipe key={r.id} recipe={r} favorite={favorites.includes(r.id)} onPress={()=>showRecipe(r)}
       status={pantry.length?({ready:'آماده پخت',uncertain:'مقدار برخی مواد نامشخص',missing:'نیازمند خرید',substituted:'با جایگزین',incompatible:'نامناسب'}[matched.status]):undefined}/>;
   };
-  const menu=()=> <View style={s.tabs} accessibilityRole="tablist">{([['home','خانه','⌂'],['pantry','یخچال من','▣'],['recipes','دستورها','☷'],['plan','برنامه من','▤']] as [Tab,string,string][]).map(([t,label,ico])=><Pressable key={t} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{selected:t===tab}}
-        style={[s.tab,t===tab&&s.tabActive]} onPress={()=>{Keyboard.dismiss();setTab(t);setPage('tabs');}}>
-        <Txt style={{fontSize:18,lineHeight:30,includeFontPadding:true,color:t===tab?c.dark:c.secondary}}>{ico}</Txt><Txt weight={t===tab} style={{fontSize:11,color:t===tab?c.dark:c.secondary}}>{label}</Txt></Pressable>)}</View>;
+  const menu=()=> <View style={s.tabs} accessibilityRole="tablist">
+    {(['home','pantry','recipes','plan'] as Tab[]).map(t=><Pressable key={t}
+      accessibilityRole="tab" accessibilityLabel={tabTitle[t]}
+      accessibilityState={{selected:t===tab}} style={[s.tab,t===tab&&s.tabActive]}
+      onPress={()=>{Keyboard.dismiss();setTab(t);setPage('tabs');}}>
+      <NavGlyph tab={t} color={t===tab?c.dark:c.secondary}/>
+      <Txt weight={t===tab} style={{fontSize:11,color:t===tab?c.dark:c.secondary}}>{tabTitle[t]}</Txt>
+    </Pressable>)}
+  </View>;
   const header=()=> <View style={s.header}>
     <View style={{flexDirection:'row',alignItems:'center',gap:12,maxWidth:720,width:'100%',alignSelf:'center'}}>
       <Image source={require('./assets/branding/brand-mark.png')} resizeMode="contain" style={{width:42,height:42}} />
