@@ -102,6 +102,10 @@ $testSigning = @'
 // TEMPORARY: Stand-alone test APK. Overrides signing only during this build.
 // DO NOT PUBLISH: signingConfigs.debug is NOT the publisher key.
 android {
+    defaultConfig {
+        versionCode 3
+        versionName '0.3.0'
+    }
     buildTypes {
         release {
             signingConfig signingConfigs.debug
@@ -142,7 +146,7 @@ try {
   if (-not $bundle) { throw 'JS bundle is missing from the APK; refusing to publish the test file.' }
 } finally { $zip.Dispose() }
 
-$dest = Join-Path $root 'Seghalam-0.2.0-PHONE-TEST.apk'
+$dest = Join-Path $root 'Seghalam-0.3.0-PHONE-TEST.apk'
 Copy-Item $sourceApk $dest -Force
 $checksum = (Get-FileHash $dest -Algorithm SHA256).Hash
 Write-Host ''
