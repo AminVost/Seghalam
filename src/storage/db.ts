@@ -287,9 +287,10 @@ export async function finishCooking(recipeId:string,servings:number,items:readon
     for(const item of after){
       if(item.quantity){
         const original=before.find(v=>v.id===item.id);
-        if(original?.quantity?.amount!==item.quantity.amount){
+        if(!original?.quantity)throw new Error('موجودی ماده هنگام ثبت پخت پیدا نشد');
+        if(original.quantity.amount!==item.quantity.amount){
           const update=await tx.execute('UPDATE pantry SET amount=? WHERE id=? AND amount=?',
-            [item.quantity.amount,item.id,original?.quantity?.amount]);
+            [item.quantity.amount,item.id,original.quantity.amount]);
           if(update.rowsAffected!==1)throw new Error('موجودی هم‌زمان تغییر کرده است');
         }
       }
