@@ -61,6 +61,10 @@ if (-not (Test-Path $wrapper) -or -not (Test-Path $installed)) {
   Check-Exit 'React Native bootstrap'
 }
 
+# Clean up duplicate Kotlin Activity/Application files from the RN CLI template.
+# This also repairs existing Windows clones without regenerating the template.
+& (Join-Path $root 'scripts/repair-native-sources.ps1')
+
 # A previous bootstrap can leave node_modules and the Gradle wrapper in place
 # even if TypeScript validation failed. Never skip validation on subsequent runs.
 Write-Host 'Checking React Native TypeScript before building APK...'
