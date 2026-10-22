@@ -150,6 +150,21 @@ function AppBody(){
   const qs=(a:string):Quantity|null=>{
     const n=parsePositiveAmount(a);return n===null?null:{amount:n,unit};
   };
+  const toggleChoice=(selected:string[],setSelected:React.Dispatch<React.SetStateAction<string[]>>,ingredientId:string)=>{
+    setSelected(selected.includes(ingredientId)?selected.filter(x=>x!==ingredientId):[...selected,ingredientId]);
+  };
+  const saveBulkPantry=()=>void run(async()=>{
+    const requested=selectedPantryIds.length;
+    const added=await db.addPantryBulk(selectedPantryIds,place);
+    setSelectedPantryIds([]);setBulkPantry(false);setIngredientSearch('');
+    if(added<requested)Alert.alert('ثبت مواد',`${fmt(added)} ماده جدید ثبت شد؛ مواد تکراری حفظ شدند.`);
+  });
+  const saveBulkShopping=()=>void run(async()=>{
+    const requested=selectedShoppingIds.length;
+    const added=await db.addShoppingBulk(selectedShoppingIds);
+    setSelectedShoppingIds([]);setBulkShopping(false);setShoppingSearch('');
+    if(added<requested)Alert.alert('فهرست خرید',`${fmt(added)} قلم جدید ثبت شد؛ اقلام تکراری حفظ شدند.`);
+  });
   const resetIngredientEditor=()=>{setAmount('');setExpiresOn('');setPlace('fridge');setNewIngredientId('');setIngredientSearch('');setEditingPantryId(null);};
   const addIngredient=()=>void run(async()=>{
     if(!newIngredientId)throw new Error('ابتدا یک ماده انتخاب کن');
@@ -322,10 +337,32 @@ function AppBody(){
     </>:null}
     {page==='tabs'&&tab==='pantry'?<>
       <Txt big>یخچال من</Txt><Txt muted>مواد را با مقدار دقیق یا بدون مقدار ثبت کن؛ چیزی خودکار موجود فرض نمی‌شود.</Txt>
-      <Panel><Txt weight>افزودن ماده غذایی</Txt>
+      <Panel>
+        <View style={s.spread}>
+          <Txt weight>{editingPantryId?'ویرایش ماده':'انتخاب مواد غذایی'}</Txt>
+          <Btn secondary disabled={!!editingPantryId} onPress={()=>{setBulkPantry(!bulkPantry);setSelectedPantryIds([]);setNewIngredientId('');}}>
+            {bulkPantry?'بازگشت به ثبت تکی':'انتخاب چندتایی'}
+          </Btn>
+        </View>
+        <Txt muted style={{fontSize:12}}>{bulkPantry?'چند ماده را انتخاب کن؛ همه با مقدار نامشخص ثبت می‌شوند.':'نام ماده را جست‌وجو و انتخاب کن، سپس مقدارش را وارد کن.'}</Txt>
         <TextInput value={ingredientSearch} onChangeText={setIngredientSearch} style={s.input} placeholder="جستجوی مواد: تخم‌مرغ، برنج، رب..." placeholderTextColor={c.secondary} textAlign="right"/>
-        <View style={s.wrap}>{chosen.map(i=><Pressable key={i.id} disabled={!!editingPantryId} accessibilityRole="button" accessibilityLabel={i.fa} accessibilityState={{selected:newIngredientId===i.id,disabled:!!editingPantryId}} onPress={()=>{setNewIngredientId(i.id);setUnit(defaultUnitFor(i.id));setEditingPantryId(null);setAmount('');setExpiresOn('');setPlace('fridge');}} style={[s.smallChip,newIngredientId===i.id&&s.selectedChip]}><Txt style={{fontSize:12,color:newIngredientId===i.id?'#fff':c.text}}>{i.fa}</Txt></Pressable>)}</View>
-        {newIngredientId?<><Txt>انتخاب‌شده: {BY_ID.get(newIngredientId)?.fa}</Txt>{editingPantryId?<Txt muted style={{fontSize:12}}>هنگام ویرایش، نوع ماده ثابت است؛ برای انتخاب ماده دیگر، ابتدا انصراف بزن.</Txt>:null}
+        <View style={s.wrap}>{chosen.map(i=>{
+          const selected=bulkPantry?selectedPantryIds.includes(i.id):newIngredientId===i.id;
+          return <Pressable key={i.id} disabled={!!editingPantryId} accessibilityRole={bulkPantry?'checkbox':'button'}
+            accessibilityLabel={i.fa} accessibilityState={{selected,checked:bulkPantry?selected:undefined,disabled:!!editingPantryId}}
+            onPress={()=>bulkPantry?toggleChoice(selectedPantryIds,setSelectedPantryIds,i.id):(setNewIngredientId(i.id),setUnit(defaultUnitFor(i.id)),setAmount(''),setExpiresOn(''),setPlace('fridge'))}
+            style={[s.smallChip,selected&&s.selectedChip]}>
+            <Txt style={{fontSize:12,color:selected?'#fff':c.text}}>{selected?'✓ ':''}{i.fa}</Txt>
+          </Pressable>;
+        })}</View>
+        {bulkPantry?<><Txt weight>محل نگهداری برای همه مواد</Txt>
+          <View style={s.wrap}>{([['fridge','یخچال'],['freezer','فریزر'],['cabinet','کابینت']] as [StoragePlace,string][]).map(([id,label])=>
+            <Pressable key={id} accessibilityRole="button" accessibilityState={{selected:place===id}} onPress={()=>setPlace(id)}
+              style={[s.smallChip,place===id&&s.selectedChip]}><Txt style={{color:place===id?'#fff':c.text}}>{label}</Txt></Pressable>)}</View>
+          <Txt muted>مقدار هر ماده بعداً از بخش ویرایش قابل تکمیل است.</Txt>
+          <Btn disabled={busy||selectedPantryIds.length===0} onPress={saveBulkPantry}>ثبت گروهی {fmt(selectedPantryIds.length)} ماده</Btn>
+        </>:null}
+        {!bulkPantry&&newIngredientId?<><Txt>انتخاب‌شده: {BY_ID.get(newIngredientId)?.fa}</Txt>{editingPantryId?<Txt muted style={{fontSize:12}}>هنگام ویرایش، نوع ماده ثابت است؛ برای انتخاب ماده دیگر، ابتدا انصراف بزن.</Txt>:null}
           <TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" style={s.input} placeholder="مقدار (اختیاری؛ خالی = نامشخص)" placeholderTextColor={c.secondary} textAlign="right"/>
           <View style={s.wrap}>{([['pcs','عدد'],['g','گرم'],['kg','کیلو'],['ml','میلی‌لیتر'],['l','لیتر']] as [Unit,string][]).map(([u,title])=><Pressable key={u} onPress={()=>setUnit(u)} style={[s.smallChip,unit===u&&s.selectedChip]}><Txt style={{color:unit===u?'#fff':c.dark,fontSize:12}}>{title}</Txt></Pressable>)}</View>
           <TextInput value={expiresOn} onChangeText={setExpiresOn} style={s.input} placeholder="انقضا (شمسی، مثال: ۱۴۰۵/۰۷/۲۸)" placeholderTextColor={c.secondary} textAlign="right" keyboardType="numbers-and-punctuation" />
@@ -390,10 +427,26 @@ function AppBody(){
     </>:null}
     {page==='shopping'?<>
       <Txt big>فهرست خرید</Txt><Txt muted>اقلام را اضافه یا ویرایش کن؛ پس از خرید می‌توانی آن‌ها را به یخچال منتقل کنی.</Txt>
-      <Panel><Txt weight>{editingShoppingId?'ویرایش قلم':'افزودن به لیست خرید'}</Txt>
+      <Panel><View style={s.spread}>
+          <Txt weight>{editingShoppingId?'ویرایش قلم':'انتخاب اقلام خرید'}</Txt>
+          <Btn secondary disabled={!!editingShoppingId} onPress={()=>{setBulkShopping(!bulkShopping);setSelectedShoppingIds([]);setShoppingPick('');}}>
+            {bulkShopping?'ثبت تکی':'انتخاب چندتایی'}
+          </Btn>
+        </View>
         <TextInput value={shoppingSearch} onChangeText={setShoppingSearch} style={s.input} textAlign="right" placeholder="جست‌وجوی ماده غذایی" placeholderTextColor={c.secondary}/>
-        <View style={s.wrap}>{shoppingChoices.map(i=><Pressable key={i.id} accessibilityRole="button" accessibilityLabel={i.fa} accessibilityState={{selected:shoppingPick===i.id,disabled:!!editingShoppingId}} disabled={!!editingShoppingId} style={[s.smallChip,shoppingPick===i.id&&s.selectedChip]} onPress={()=>{setShoppingPick(i.id);setShoppingUnit(defaultUnitFor(i.id));}}><Txt style={{fontSize:12,color:shoppingPick===i.id?'#fff':c.dark}}>{i.fa}</Txt></Pressable>)}</View>
-        {shoppingPick?<><Txt muted>ماده انتخاب‌شده: {BY_ID.get(shoppingPick)?.fa}</Txt>
+        <View style={s.wrap}>{shoppingChoices.map(i=>{
+          const selected=bulkShopping?selectedShoppingIds.includes(i.id):shoppingPick===i.id;
+          return <Pressable key={i.id} accessibilityRole={bulkShopping?'checkbox':'button'} accessibilityLabel={i.fa}
+            accessibilityState={{selected,checked:bulkShopping?selected:undefined,disabled:!!editingShoppingId}}
+            disabled={!!editingShoppingId} style={[s.smallChip,selected&&s.selectedChip]}
+            onPress={()=>bulkShopping?toggleChoice(selectedShoppingIds,setSelectedShoppingIds,i.id):(setShoppingPick(i.id),setShoppingUnit(defaultUnitFor(i.id)))}>
+            <Txt style={{fontSize:12,color:selected?'#fff':c.text}}>{selected?'✓ ':''}{i.fa}</Txt>
+          </Pressable>;
+        })}</View>
+        {bulkShopping?<><Txt muted>اقلام انتخابی با مقدار نامشخص به فهرست خرید اضافه می‌شوند.</Txt>
+          <Btn disabled={busy||selectedShoppingIds.length===0} onPress={saveBulkShopping}>افزودن گروهی {fmt(selectedShoppingIds.length)} قلم</Btn>
+        </>:null}
+        {!bulkShopping&&shoppingPick?<><Txt muted>ماده انتخاب‌شده: {BY_ID.get(shoppingPick)?.fa}</Txt>
           <TextInput value={shoppingAmount} onChangeText={setShoppingAmount} keyboardType="decimal-pad" style={s.input} textAlign="right" placeholder="مقدار (اختیاری)" placeholderTextColor={c.secondary}/>
           <View style={s.wrap}>{([['pcs','عدد'],['g','گرم'],['kg','کیلو'],['ml','میلی‌لیتر'],['l','لیتر']] as [Unit,string][]).map(([u,name])=><Pressable key={u} style={[s.smallChip,shoppingUnit===u&&s.selectedChip]} onPress={()=>setShoppingUnit(u)}><Txt style={{color:shoppingUnit===u?'#fff':c.dark}}>{name}</Txt></Pressable>)}</View>
           <Btn onPress={saveShopping} disabled={busy}>{editingShoppingId?'ذخیره تغییرات':'افزودن قلم'}</Btn>
@@ -408,6 +461,19 @@ function AppBody(){
       {!shopping.length?<Panel><Txt muted>فهرست خرید خالی است. از صفحه غذا مواد کمبود را اضافه کن.</Txt></Panel>:null}
     </>:null}
     {page==='settings'?<>
+      <Txt big>تنظیمات برنامه</Txt>
+      <Panel><Txt weight>ظاهر برنامه</Txt>
+        <Txt muted>رنگ‌بندی مناسب محیط را انتخاب کن.</Txt>
+        <View style={s.wrap}>{([['system','هماهنگ با گوشی'],['light','روشن ☀'],['dark','تیره ☾']] as [db.UiThemeMode,string][]).map(([id,label])=>
+          <Pressable key={id} accessibilityRole="button" accessibilityState={{selected:mode===id}}
+            onPress={()=>saveTheme(id)} style={[s.smallChip,mode===id&&s.selectedChip]}>
+            <Txt style={{fontSize:12,color:mode===id?'#fff':c.text}}>{mode===id?'✓ ':''}{label}</Txt>
+          </Pressable>)}</View>
+      </Panel>
+      <Panel><Txt weight>راهنمای کار با برنامه</Txt>
+        <Txt muted>اگر در هر بخش نیاز به توضیح داشتی، تور کوتاه را دوباره اجرا کن.</Txt>
+        <Btn secondary onPress={openTour}>اجرای راهنمای تعاملی</Btn>
+      </Panel>
       <Txt big>ترجیحات و محدودیت غذایی</Txt>
       <Txt muted>مواد آلرژی‌زای ثبت‌شده در پیشنهادها فیلتر می‌شوند. اطلاعات ترکیبات و آلودگی متقاطع کاتالوگ اولیه هنوز بازبینی نهایی نشده است؛ از اپ برای تأیید ایمنی آلرژی استفاده نکن.</Txt>
       <Panel><Txt weight>مواد آلرژی‌زا برای حذف</Txt>
