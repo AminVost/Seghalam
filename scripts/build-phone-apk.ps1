@@ -2,7 +2,7 @@
 # and signed ONLY using the React Native development/debug keystore.
 # NOT suitable for Cafe Bazaar publication.
 # Run on Windows with Internet, Android SDK (API 37), Node >=22.13 and JDK >=17.
-param([switch]$SkipBootstrap, [switch]$UseMavenMirror)
+param([switch]$SkipBootstrap, [switch]$UseMavenMirror, [switch]$RefreshDependencies)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $root
@@ -121,8 +121,10 @@ try {
       $mirrorScript = Join-Path $root 'scripts/android-maven-mirror.init.gradle'
       if (-not (Test-Path $mirrorScript)) { throw "Optional Maven mirror init script not found: $mirrorScript" }
       Write-Warning 'Using third-party Aliyun mirrors for Google Maven and Maven Central in THIS build only.'
-      $gradleArguments = @('--init-script', $mirrorScript) + $gradleArguments + @('--refresh-dependencies')
+      $gradleArguments = @('--init-script', $mirrorScript) + $gradleArguments
     }
+    # Normal builds reuse already downloaded Maven artifacts. Refresh is opt-in.
+    if ($RefreshDependencies) { $gradleArguments += '--refresh-dependencies' }
     & .\gradlew.bat @gradleArguments
     Check-Exit 'Gradle assembleRelease'
   } finally { Pop-Location }
