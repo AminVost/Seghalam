@@ -16,16 +16,17 @@ foreach ($name in $expected) {
   }
 }
 
-$canonicalPaths = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
-foreach ($name in $expected) {
-  [void]$canonicalPaths.Add([System.IO.Path]::GetFullPath((Join-Path $canonicalDir $name)))
-}
+$canonicalPaths = @(
+  foreach ($name in $expected) {
+    [System.IO.Path]::GetFullPath((Join-Path $canonicalDir $name))
+  }
+)
 
 $incorrectCliDir = [System.IO.Path]::GetFullPath((Join-Path $javaRoot 'com/ir.seghalam.food'))
 $candidates = @(Get-ChildItem -LiteralPath $javaRoot -Recurse -File | Where-Object { $classFiles -contains $_.Name })
 foreach ($candidate in $candidates) {
   $candidatePath = [System.IO.Path]::GetFullPath($candidate.FullName)
-  if ($canonicalPaths.Contains($candidatePath)) { continue }
+  if ($canonicalPaths -contains $candidatePath) { continue }
 
   $source = [System.IO.File]::ReadAllText($candidatePath)
   $samePackage = [regex]::IsMatch($source, '(?m)^\s*package\s+ir[.]seghalam[.]food\s*;?\s*$')
