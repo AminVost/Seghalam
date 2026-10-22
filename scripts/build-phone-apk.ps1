@@ -51,6 +51,28 @@ Write-Host 'Checking React Native TypeScript before building APK...'
 & npm run typecheck
 Check-Exit 'React Native TypeScript typecheck'
 
+# React Native Gradle's settings plugin invokes the CLI autolinking command.
+# Check that command before Gradle so its underlying error is not hidden behind
+# "Process 'command cmd' finished with non-zero exit value 1".
+Write-Host 'Checking React Native CLI autolinking...'
+$diagnosticDir = Join-Path $root 'android/build/seghalam-diagnostics'
+New-Item -ItemType Directory -Force -Path $diagnosticDir | Out-Null
+$cliStdout = Join-Path $diagnosticDir 'autolinking-stdout.log'
+$cliStderr = Join-Path $diagnosticDir 'autolinking-stderr.log'
+$cliArgs = @('/d', '/c', 'npx --no-install @react-native-community/cli config')
+$cliProcess = Start-Process -FilePath 'cmd.exe' -ArgumentList $cliArgs -WorkingDirectory $root -RedirectStandardOutput $cliStdout -RedirectStandardError $cliStderr -Wait -PassThru -NoNewWindow
+if ($cliProcess.ExitCode -ne 0) {
+  Write-Warning "React Native CLI autolinking failed (exit $($cliProcess.ExitCode))."
+  if (Test-Path $cliStderr) {
+    Get-Content $cliStderr -Tail 80 -Encoding UTF8 | ForEach-Object { Write-Host $_ }
+  }
+  if (Test-Path $cliStdout) {
+    Get-Content $cliStdout -Tail 25 -Encoding UTF8 | ForEach-Object { Write-Host $_ }
+  }
+  throw "Autolinking command failed. Full logs: $diagnosticDir"
+}
+Write-Host 'React Native CLI autolinking passed.'
+
 # The original release signing rules are never committed or permanently changed.
 # A non-debuggable Release variant bundles JS into the APK, so Metro is NOT needed.
 $gradleFile = Join-Path $root 'android/app/build.gradle'
