@@ -1,0 +1,42 @@
+{
+  "name": "seghalam",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "start": "react-native start",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:domain": "tsc -p tsconfig.domain.json && node --test tests/*.test.cjs",
+    "test": "npm run test:domain",
+    "assemble:debug": "node scripts/run-gradle.cjs assembleDebug",
+    "test:sqlite": "python scripts/validate_sqlite_schema.py && python scripts/test_catalog_v5_migration.py && python scripts/test_session_v6_migration.py",
+    "assemble:release": "node scripts/run-gradle.cjs assembleRelease",
+    "audit:content": "tsc -p tsconfig.domain.json && node scripts/audit-content.cjs",
+    "export:catalog": "npm run test:domain && node scripts/export-catalog.cjs && python scripts/build_catalog_sqlite.py",
+    "test:catalog": "npm run export:catalog && python scripts/validate_sqlite_schema.py",
+    "test:all": "npm run check:syntax && npm run test:domain && npm run audit:semantic && npm run test:catalog && npm run test:sqlite",
+    "audit:semantic": "tsc -p tsconfig.domain.json && node scripts/audit-recipe-semantic.cjs",
+    "check:syntax": "node scripts/check-syntax.cjs"
+  },
+  "dependencies": {
+    "react": "19.2.3",
+    "react-native": "0.87.1",
+    "@op-engineering/op-sqlite": "17.0.0",
+    "react-native-safe-area-context": "5.6.2",
+    "vazirmatn": "33.0.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.0",
+    "@babel/runtime": "^7.28.0",
+    "@react-native/babel-preset": "0.87.1",
+    "@react-native/metro-config": "0.87.1",
+    "@react-native/typescript-config": "0.87.1",
+    "@react-native-community/cli": "20.2.0",
+    "@react-native-community/cli-platform-android": "20.2.0",
+    "@types/react": "^19.2.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}
