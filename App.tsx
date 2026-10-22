@@ -30,11 +30,21 @@ function SingleRecipe({recipe,onPress,favorite,status,subtitle}: {recipe:Recipe;
   const total=recipe.prepMinutes+recipe.cookMinutes;
   const category=recipe.categories[0]??'iranian';
   const emoji:Record<Category,string>={iranian:'🍲',light:'🥗',snack:'🥣',fastfood:'🥙'};
+  // Avoid displaying the same soup icon for every Iranian dish.
+  const dishIcon=/املت|تخم.مرغ|نیمرو/.test(recipe.title)?'🍳':
+    /کوکو|سیب.زمینی/.test(recipe.title)?'🥔':
+    /عدسی|آش|سوپ/.test(recipe.title)?'🥣':
+    /سالاد/.test(recipe.title)?'🥗':
+    /برنج|پلو|چلو/.test(recipe.title)?'🍚':
+    /ماکارونی|پاستا/.test(recipe.title)?'🍝':
+    /پیتزا/.test(recipe.title)?'🍕':
+    /ساندویچ|برگر/.test(recipe.title)?'🍔':
+    /مرغ/.test(recipe.title)?'🍗':emoji[category];
   const tint:Record<Category,string>={iranian:'#F8E8D2',light:'#E6F0DD',snack:'#F9E8DE',fastfood:'#F5E8C8'};
   const uncertainty=!!status&&(/نامشخص|نیازمند|نامناسب|کم داری/.test(status));
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${recipe.title}، ${total} دقیقه${status?`، ${status}`:''}`}
     style={({pressed})=>[s.recipeCard,pressed&&{opacity:0.78,transform:[{scale:0.99}]}]}>
-    <View style={[s.dishIcon,{backgroundColor:tint[category]}]}><Txt style={{fontSize:25,lineHeight:47,includeFontPadding:true,textAlign:'center'}}>{emoji[category]}</Txt></View>
+    <View style={[s.dishIcon,{backgroundColor:tint[category]}]}><Txt style={{fontSize:25,lineHeight:47,includeFontPadding:true,textAlign:'center'}}>{dishIcon}</Txt></View>
     <View style={{flex:1,flexShrink:1,gap:4}}>
       <Txt weight style={{color:c.dark,fontSize:13}}>{recipe.title}{favorite?'  ♥':''}</Txt>
       <Txt muted style={{fontSize:12}}>{fmt(total)} دقیقه  •  {fmt(recipe.servings)} نفر  •  {categoryTitle[category]}</Txt>
@@ -143,7 +153,7 @@ function AppBody(){
   },[pantry.length,query,suggestions]);
   const recipeList=useMemo(()=>catalog.filter(r=>(!recipeFilter||r.categories.includes(recipeFilter))&&
     (!search||normalizeFa(r.title).includes(normalizeFa(search)))),[catalog,recipeFilter,search]);
-  const planCandidates=useMemo(()=>catalog.filter(r=>!planSearch||normalizeFa(r.title).includes(normalizeFa(planSearch))).slice(0,24),[catalog,planSearch]);
+  const planCandidates=useMemo(()=>catalog.filter(r=>!planSearch||normalizeFa(r.title).includes(normalizeFa(planSearch))).slice(0,12),[catalog,planSearch]);
   const chosen=INGREDIENTS.filter(i=>!ingredientSearch||normalizeFa(i.fa).includes(normalizeFa(ingredientSearch))||i.aliases.some(a=>normalizeFa(a).includes(normalizeFa(ingredientSearch)))).slice(0,28);
   const shoppingChoices=INGREDIENTS.filter(i=>!shoppingSearch||normalizeFa(i.fa).includes(normalizeFa(shoppingSearch))||i.aliases.some(a=>normalizeFa(a).includes(normalizeFa(shoppingSearch)))).slice(0,20);
   const showRecipe=(r:Recipe)=>{setRecipe(r);setServings(r.servings);setPage('detail');Keyboard.dismiss();};
@@ -246,9 +256,16 @@ function AppBody(){
         </Pressable>}
     </View>
   </View>;
-  const categories=(scope:'home'|'recipes')=> <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categories} style={{flexGrow:0}}>
-    {([['','همه'],['iranian','🍲 ایرانی'],['light','🥗 سبک'],['snack','🥣 میان‌وعده'],['fastfood','🥪 فست‌فود']] as [Category|'',string][]).map(([id,label])=><Pressable key={id} accessibilityRole="button" accessibilityState={{selected:(scope==='home'?homeFilter:recipeFilter)===id}} onPress={()=>scope==='home'?setHomeFilter(id):setRecipeFilter(id)} style={[s.chip,(scope==='home'?homeFilter:recipeFilter)===id&&s.chipActive]}><Txt style={{color:(scope==='home'?homeFilter:recipeFilter)===id?'#fff':c.dark,fontSize:13}}>{label}</Txt></Pressable>)}
-  </ScrollView>;
+  // Five filters fit better across two lines than in an obscured horizontal list.
+  const categories=(scope:'home'|'recipes')=> <View style={s.categories}>
+    {([['','همه'],['iranian','🍲 ایرانی'],['light','🥗 سبک'],['snack','🥣 میان‌وعده'],['fastfood','🥪 فست‌فود']] as [Category|'',string][]).map(([id,label])=>
+      <Pressable key={id} accessibilityRole="button"
+        accessibilityState={{selected:(scope==='home'?homeFilter:recipeFilter)===id}}
+        onPress={()=>scope==='home'?setHomeFilter(id):setRecipeFilter(id)}
+        style={[s.chip,(scope==='home'?homeFilter:recipeFilter)===id&&s.chipActive]}>
+        <Txt style={{color:(scope==='home'?homeFilter:recipeFilter)===id?'#fff':c.text,fontSize:12}}>{label}</Txt>
+      </Pressable>)}
+  </View>;
   if(fatal)return <SafeAreaView style={[s.base,{justifyContent:'center',padding:20}]}><Panel>
     <Txt big>خطا در آماده‌سازی اطلاعات</Txt>
     <Txt muted>راه‌اندازی اطلاعات محلی کامل نشد. فعلاً اطلاعات برنامه را پاک نکن.</Txt>
@@ -394,7 +411,12 @@ function AppBody(){
         <View style={s.wrap}>{['صبحانه','ناهار','شام','میان‌وعده'].map(v=><Pressable key={v} accessibilityRole="button" accessibilityState={{selected:planSlot===v}} style={[s.smallChip,planSlot===v&&s.selectedChip]} onPress={()=>setPlanSlot(v)}><Txt style={{color:planSlot===v?'#fff':c.dark}}>{v}</Txt></Pressable>)}</View>
         <Txt weight>انتخاب غذا برای این وعده</Txt>
         <TextInput value={planSearch} onChangeText={text=>{setPlanSearch(text);setPlanRecipe('');}} style={s.input} textAlign="right" placeholder="جست‌وجوی غذا برای برنامه غذایی" placeholderTextColor={c.secondary}/>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow:0}} contentContainerStyle={{gap:8}}>{planCandidates.map(r=><Pressable key={r.id} accessibilityRole="button" accessibilityLabel={r.title} accessibilityState={{selected:planRecipe===r.id}} onPress={()=>setPlanRecipe(r.id)} style={[s.smallChip,planRecipe===r.id&&s.selectedChip]}><Txt style={{fontSize:12,color:planRecipe===r.id?'#fff':c.dark}}>{r.title}</Txt></Pressable>)}</ScrollView>
+        <Txt muted style={{fontSize:12}}>برای غذاهای بیشتر، نام آن‌ها را جست‌وجو کن.</Txt>
+        <View style={s.wrap}>{planCandidates.map(r=><Pressable key={r.id} accessibilityRole="button"
+          accessibilityLabel={r.title} accessibilityState={{selected:planRecipe===r.id}}
+          onPress={()=>setPlanRecipe(r.id)} style={[s.smallChip,planRecipe===r.id&&s.selectedChip]}>
+          <Txt style={{fontSize:12,color:planRecipe===r.id?'#fff':c.text}}>{r.title}</Txt>
+        </Pressable>)}</View>
         <Txt muted>{planRecipe?`غذای انتخابی: ${catalog.find(r=>r.id===planRecipe)?.title??'انتخاب نشده'}`:'برای ثبت، یکی از غذاهای نمایش‌داده‌شده را انتخاب کن.'}</Txt>
         <Btn disabled={busy||!planRecipe} onPress={()=>void run(async()=>{const isoDay=toIsoDate(planDay);if(!selectedRecipeStillVisible(planRecipe,planCandidates))throw new Error('ابتدا یک غذا از نتایج فعلی انتخاب کن');await db.addMeal(isoDay,planSlot,planRecipe);})}>ثبت برنامه</Btn>
       </Panel>
@@ -502,27 +524,27 @@ function AppBody(){
 }
 const createStyles=(c:Palette)=>StyleSheet.create({
   base:{flex:1,backgroundColor:c.background,direction:'rtl'},
-  header:{paddingHorizontal:15,paddingVertical:9,borderBottomWidth:1,borderBottomColor:c.line,backgroundColor:c.surface},
+  header:{paddingHorizontal:15,paddingVertical:9,borderBottomWidth:1,borderBottomColor:c.line,backgroundColor:c.surface,direction:'rtl'},
   backButton:{paddingHorizontal:13,paddingVertical:8,minHeight:45,justifyContent:'center',borderRadius:13,backgroundColor:c.pale},
-  body:{paddingHorizontal:15,paddingTop:15,paddingBottom:30,gap:12,width:'100%',maxWidth:720,alignSelf:'center'},
+  body:{paddingHorizontal:15,paddingTop:15,paddingBottom:42,gap:12,width:'100%',maxWidth:720,alignSelf:'center',direction:'rtl',alignItems:'stretch'},
   hero:{backgroundColor:c.deep,borderRadius:24,padding:21,minHeight:188,gap:8,justifyContent:'center',overflow:'hidden',elevation:3},
   heroOrb:{position:'absolute',height:170,width:170,borderRadius:85,right:-50,top:-60,backgroundColor:'#2F624C'},
   heroOrbSmall:{position:'absolute',height:100,width:100,borderRadius:50,right:22,bottom:-67,backgroundColor:'#4A7754'},
   heroButton:{backgroundColor:c.saffron,borderRadius:15,alignSelf:'flex-start',minHeight:48,justifyContent:'center',paddingVertical:9,paddingHorizontal:19,marginTop:11},
-  overview:{flexDirection:'row',justifyContent:'space-around',paddingVertical:14,paddingHorizontal:10,backgroundColor:c.pale,borderRadius:22,alignItems:'center',borderWidth:1,borderColor:c.line},
-  sectionTitle:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8},
+  overview:{flexDirection:'row',direction:'rtl',justifyContent:'space-around',paddingVertical:14,paddingHorizontal:10,backgroundColor:c.pale,borderRadius:22,alignItems:'center',borderWidth:1,borderColor:c.line},
+  sectionTitle:{flexDirection:'row',direction:'rtl',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8},
   input:{fontFamily:'Vazirmatn-Regular',backgroundColor:c.surface,borderWidth:1,borderColor:c.line,borderRadius:13,minHeight:46,paddingHorizontal:13,fontSize:13,color:c.text,writingDirection:'rtl',textAlign:'right',includeFontPadding:true},
-  recipeCard:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:c.surface,padding:13,borderRadius:22,borderWidth:1,borderColor:c.line,minHeight:94},
+  recipeCard:{flexDirection:'row',direction:'rtl',alignItems:'center',gap:12,backgroundColor:c.surface,padding:13,borderRadius:22,borderWidth:1,borderColor:c.line,minHeight:94},
   dishIcon:{width:60,height:60,borderRadius:18,alignItems:'center',justifyContent:'center',overflow:'visible'},
   cardArrow:{width:24,height:35,alignItems:'center',justifyContent:'center'},
   statusPill:{borderRadius:10,paddingVertical:3,paddingHorizontal:9,alignSelf:'flex-start'},
-  chip:{backgroundColor:c.pale,borderRadius:22,paddingVertical:10,paddingHorizontal:15,minHeight:43,justifyContent:'center'},
-  chipActive:{backgroundColor:c.green},categories:{gap:8,paddingVertical:4},
-  wrap:{flexDirection:'row',flexWrap:'wrap',gap:8},
+  chip:{backgroundColor:c.pale,borderRadius:19,paddingVertical:8,paddingHorizontal:13,minHeight:40,justifyContent:'center'},
+  chipActive:{backgroundColor:c.green},categories:{flexDirection:'row',flexWrap:'wrap',direction:'rtl',gap:8,paddingVertical:4},
+  wrap:{flexDirection:'row',direction:'rtl',flexWrap:'wrap',gap:8,alignItems:'center'},
   smallChip:{backgroundColor:c.pale,borderRadius:14,paddingHorizontal:12,paddingVertical:8,minHeight:43,justifyContent:'center',borderWidth:1,borderColor:c.line},
   selectedChip:{backgroundColor:c.green,borderColor:c.green},
-  spread:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'},
-  two:{flexDirection:'row',gap:10,justifyContent:'space-around',flexWrap:'wrap',alignItems:'center'},
+  spread:{flexDirection:'row',direction:'rtl',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'},
+  two:{flexDirection:'row',direction:'rtl',gap:10,justifyContent:'space-around',flexWrap:'wrap',alignItems:'center'},
   tabs:{flexDirection:'row',padding:6,backgroundColor:c.surface,borderTopWidth:1,borderTopColor:c.line,minHeight:66,direction:'rtl'},
   tab:{flex:1,alignItems:'center',justifyContent:'center',padding:3,borderRadius:13,minHeight:52,gap:1},
   tabActive:{backgroundColor:c.pale,borderBottomWidth:2,borderBottomColor:c.green},
