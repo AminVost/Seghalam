@@ -50,6 +50,7 @@ function AppBody(){
   const {palette:c,mode,isDark,setMode}=useTheme();
   const s=useMemo(()=>createStyles(c),[c]);
   const [tourVisible,setTourVisible]=useState(false);
+  const [tourStep,setTourStep]=useState(0);
   const [bulkPantry,setBulkPantry]=useState(false),[bulkShopping,setBulkShopping]=useState(false);
   const [selectedPantryIds,setSelectedPantryIds]=useState<string[]>([]);
   const [selectedShoppingIds,setSelectedShoppingIds]=useState<string[]>([]);
@@ -124,8 +125,8 @@ function AppBody(){
     if(runningRef.current)return;runningRef.current=true;setBusy(true);try{await fn();await refresh();}catch(e){Alert.alert('خطا',String(e instanceof Error?e.message:e));}finally{runningRef.current=false;setBusy(false);}
   };
   const saveTheme=(value:db.UiThemeMode)=>void run(async()=>{await db.saveThemePreference(value);setMode(value);});
-  const openTour=()=>{setPage('tabs');setTab('home');setTourVisible(true);};
-  const tour=()=> <CoachTour visible={tourVisible} onClose={()=>setTourVisible(false)} onNavigate={target=>{setPage('tabs');setTab(target);}}/>;
+  const openTour=()=>{setTourStep(0);setPage('tabs');setTab('home');setTourVisible(true);};
+  const tour=()=> <CoachTour visible={tourVisible} step={tourStep} onStepChange={setTourStep} onClose={()=>setTourVisible(false)} onNavigate={target=>{setPage('tabs');setTab(target);}}/>;
   const intent=useMemo(()=>parseIntent(query),[query]);
   const effectivePantry=useMemo(()=>{
     const extra=intent.includedIds.filter(id=>!pantry.some(p=>p.ingredientId===id))
