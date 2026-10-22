@@ -1,0 +1,10 @@
+const fs=require('node:fs');const path=require('node:path');const crypto=require('node:crypto');
+const {RECIPES}=require('../.domain-build/data/recipes');
+const {INGREDIENTS}=require('../.domain-build/data/ingredients');
+const {validateCatalog}=require('../.domain-build/domain/validate');
+const errors=validateCatalog(RECIPES);
+if(errors.length)throw Error(errors.join('\n'));
+const target=path.join(__dirname,'../content/catalog.generated.json');
+fs.writeFileSync(target,JSON.stringify({revision:2026102003,recipes:RECIPES,ingredients:INGREDIENTS,reviewHashes:Object.fromEntries(RECIPES.map(r=>[r.id,crypto.createHash('sha256').update(JSON.stringify(r)).digest('hex')]))},null,2)+'\n');
+const categories=['iranian','light','snack','fastfood'];
+console.log(JSON.stringify({recipes:RECIPES.length,ingredients:INGREDIENTS.length,withSource:RECIPES.filter(r=>r.provenance.url).length,reviewed:RECIPES.filter(r=>r.contentStatus==='reviewed').length,coverage:Object.fromEntries(categories.map(c=>[c,RECIPES.filter(r=>r.categories.includes(c)).length])),path:target},null,2));
