@@ -1,0 +1,30 @@
+// Optional Google Maven mirror for restricted/unstable networks.
+// Activated only by: build-phone-apk.ps1 -UseMavenMirror
+// Third-party origin: https://maven.aliyun.com/repository/google
+// Default builds use the official repositories and do not load this script.
+//
+// Attach the mirror at Gradle initialization so it is visible to the main
+// Android build AND the React Native Gradle plugin's included build.
+def addGoogleMirror = { repositories ->
+    if (repositories.findByName('SeghalamAliyunGoogleMirror') == null) {
+        repositories.maven {
+            name = 'SeghalamAliyunGoogleMirror'
+            url = new URI('https://maven.aliyun.com/repository/google')
+            content {
+                includeGroupByRegex 'com\\.android(\\..*)?'
+                includeGroupByRegex 'com\\.google(\\..*)?'
+                includeGroupByRegex 'androidx(\\..*)?'
+            }
+        }
+    }
+}
+
+gradle.beforeSettings { settings ->
+    addGoogleMirror(settings.pluginManagement.repositories)
+    addGoogleMirror(settings.dependencyResolutionManagement.repositories)
+}
+
+gradle.beforeProject { project ->
+    addGoogleMirror(project.buildscript.repositories)
+    addGoogleMirror(project.repositories)
+}
