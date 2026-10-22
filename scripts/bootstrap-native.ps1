@@ -1,4 +1,4 @@
-# On Windows, generate the uncommitted Gradle wrapper and Native template from
+﻿# On Windows, generate the uncommitted Gradle wrapper and Native template from
 # the exact official React Native version. Safe to re-run after a failed install.
 param([switch]$SkipDebugBuild)
 $ErrorActionPreference = 'Stop'
@@ -58,7 +58,12 @@ if (-not (Test-Path $wrapper)) {
     $stringsPath = Join-Path $root 'android/app/src/main/res/values/strings.xml'
     if (Test-Path $stringsPath) {
       $strings = Get-Content $stringsPath -Raw -Encoding UTF8
-      $strings = [regex]::Replace($strings, '<string name="app_name">.*?</string>', '<string name="app_name">سه‌قلم غذا</string>')
+      # Keep this script ASCII-safe for Windows PowerShell 5.1, which treats
+      # BOM-less UTF-8 scripts as the legacy system code page.
+      # These code points spell the Persian app name with a zero-width non-joiner.
+      $appName = -join (@(0x0633, 0x0647, 0x200C, 0x0642, 0x0644, 0x0645, 0x0020, 0x063A, 0x0630, 0x0627) | ForEach-Object { [char]$_ })
+      $replacement = '<string name="app_name">' + $appName + '</string>'
+      $strings = [regex]::Replace($strings, '<string name="app_name">.*?</string>', $replacement)
       Set-Content $stringsPath $strings -Encoding UTF8
     }
     $mainKt = Get-ChildItem (Join-Path $root 'android/app/src/main/java') -Filter MainApplication.kt -Recurse | Select-Object -First 1
