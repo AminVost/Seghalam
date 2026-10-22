@@ -359,7 +359,7 @@ function AppBody(){
       </Panel>
     </>:null}
     {page==='tabs'&&tab==='pantry'?<>
-      <Txt big>یخچال من</Txt><Txt muted>۱. جست‌وجو  •  ۲. انتخاب ماده یا چند ماده  •  ۳. ثبت موجودی</Txt>
+      <Txt big style={s.pageHeading}>یخچال من</Txt><Txt muted>۱. جست‌وجو  •  ۲. انتخاب ماده یا چند ماده  •  ۳. ثبت موجودی</Txt>
       <Panel>
         <View style={s.spread}>
           <Txt weight>{editingPantryId?'ویرایش ماده':'انتخاب مواد غذایی'}</Txt>
@@ -383,7 +383,6 @@ function AppBody(){
             <Pressable key={id} accessibilityRole="button" accessibilityState={{selected:place===id}} onPress={()=>setPlace(id)}
               style={[s.smallChip,place===id&&s.selectedChip]}><Txt style={{color:place===id?'#fff':c.text}}>{label}</Txt></Pressable>)}</View>
           <Txt muted>مقدار هر ماده بعداً از بخش ویرایش قابل تکمیل است.</Txt>
-          <Btn disabled={busy||selectedPantryIds.length===0} onPress={saveBulkPantry}>ثبت گروهی {fmt(selectedPantryIds.length)} ماده</Btn>
         </>:null}
         {!bulkPantry&&newIngredientId?<><Txt>انتخاب‌شده: {BY_ID.get(newIngredientId)?.fa}</Txt>{editingPantryId?<Txt muted style={{fontSize:12}}>هنگام ویرایش، نوع ماده ثابت است؛ برای انتخاب ماده دیگر، ابتدا انصراف بزن.</Txt>:null}
           <TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" style={s.input} placeholder="مقدار (اختیاری؛ خالی = نامشخص)" placeholderTextColor={c.secondary} textAlign="right"/>
@@ -395,7 +394,7 @@ function AppBody(){
           {editingPantryId?<Btn secondary onPress={resetIngredientEditor}>انصراف از ویرایش</Btn>:null}
           <Btn disabled={busy} onPress={addIngredient}>{editingPantryId?'ذخیره تغییرات':'ثبت در موجودی'}</Btn></>:null}
       </Panel>
-      <Txt big>مواد ثبت‌شده ({fmt(pantry.length)})</Txt>
+      <Txt big style={s.pageHeading}>مواد ثبت‌شده ({fmt(pantry.length)})</Txt>
       {!pantry.length?<Panel><Txt muted>هنوز ماده‌ای اضافه نشده است.</Txt></Panel>:null}
       {pantry.map(row=><Panel key={row.id}><View style={s.spread}>
           <View style={{flex:1,alignItems:'flex-start'}}><Txt weight>{BY_ID.get(row.ingredientId)?.fa}</Txt><Txt muted>{row.quantity?quantityFa(row.quantity):'مقدار نامشخص'} • {row.place==='freezer'?'فریزر':row.place==='cabinet'?'کابینت':'یخچال'}</Txt>
@@ -405,7 +404,7 @@ function AppBody(){
         </View></Panel>)}
     </>:null}
     {page==='tabs'&&tab==='plan'?<>
-      <Txt big>برنامه غذایی من</Txt><Txt muted>برای هر روز، یک یا چند وعده برنامه‌ریزی کن.</Txt>
+      <Txt big style={s.pageHeading}>برنامه غذایی من</Txt><Txt muted>برای هر روز، یک یا چند وعده برنامه‌ریزی کن.</Txt>
       <Panel><Txt weight>برنامه‌ریزی وعده</Txt>
         <TextInput value={planDay} onChangeText={setPlanDay} style={s.input} placeholder="تاریخ شمسی: ۱۴۰۵/۰۷/۲۸" placeholderTextColor={c.secondary} textAlign="right"/>
         <View style={s.wrap}>{['صبحانه','ناهار','شام','میان‌وعده'].map(v=><Pressable key={v} accessibilityRole="button" accessibilityState={{selected:planSlot===v}} style={[s.smallChip,planSlot===v&&s.selectedChip]} onPress={()=>setPlanSlot(v)}><Txt style={{color:planSlot===v?'#fff':c.dark}}>{v}</Txt></Pressable>)}</View>
@@ -420,7 +419,7 @@ function AppBody(){
         <Txt muted>{planRecipe?`غذای انتخابی: ${catalog.find(r=>r.id===planRecipe)?.title??'انتخاب نشده'}`:'برای ثبت، یکی از غذاهای نمایش‌داده‌شده را انتخاب کن.'}</Txt>
         <Btn disabled={busy||!planRecipe} onPress={()=>void run(async()=>{const isoDay=toIsoDate(planDay);if(!selectedRecipeStillVisible(planRecipe,planCandidates))throw new Error('ابتدا یک غذا از نتایج فعلی انتخاب کن');await db.addMeal(isoDay,planSlot,planRecipe);})}>ثبت برنامه</Btn>
       </Panel>
-      <Txt big>وعده‌های ثبت‌شده</Txt>
+      <Txt big style={s.pageHeading}>وعده‌های ثبت‌شده</Txt>
       {meals.map(m=><Panel key={m.id}><View style={s.spread}><View style={{flex:1}}><Txt weight>{formatJalali(m.date)} · {m.meal}</Txt><Txt>{catalog.find(r=>r.id===m.recipeId)?.title??'غذای حذف‌شده'}</Txt></View><Pressable accessibilityRole="button" accessibilityLabel="حذف وعده غذایی" onPress={()=>void run(()=>db.removeMeal(m.id))}><Txt style={{color:c.tomato}}>حذف</Txt></Pressable></View></Panel>)}
       {!meals.length?<Txt muted>هنوز برنامه‌ای ثبت نشده است.</Txt>:null}
     </>:null}
@@ -429,7 +428,7 @@ function AppBody(){
       <View style={s.overview}><Txt>{fmt(recipe.prepMinutes+recipe.cookMinutes)} دقیقه</Txt><Txt>{fmt(servings)} نفر</Txt><Txt>{recipe.difficulty==='easy'?'آسان':'متوسط'}</Txt></View>
       <Panel><View style={s.spread}><Txt weight>تعداد نفرات: {fmt(servings)}</Txt><View style={s.two}><Btn secondary onPress={()=>setServings(Math.max(1,servings-1))}>−</Btn><Btn secondary onPress={()=>setServings(Math.min(20,servings+1))}>＋</Btn></View></View>
         <Btn secondary onPress={()=>void run(()=>db.toggleFavorite(recipe.id,!favorites.includes(recipe.id)))}>{favorites.includes(recipe.id)?'♥ حذف علاقه‌مندی':'♡ ذخیره غذا'}</Btn></Panel>
-      <Txt big>مواد مورد نیاز</Txt>
+      <Txt big style={s.pageHeading}>مواد مورد نیاز</Txt>
       {recipe.ingredients.map((ing,i)=>{
         const q=scaleQuantity(ing.quantity,recipe.servings,servings,ing.scaling);
         const one=matchRecipe({...recipe,ingredients:[{...ing,essential:true}]},pantry,servings,{excludedIngredientIds:[],excludedAllergens});
@@ -458,7 +457,7 @@ function AppBody(){
       <Btn secondary onPress={()=>setPage('detail')}>خروج و ذخیره ادامه آشپزی</Btn>
     </>:null}
     {page==='shopping'?<>
-      <Txt big>فهرست خرید</Txt><Txt muted>اقلام را اضافه یا ویرایش کن؛ پس از خرید می‌توانی آن‌ها را به یخچال منتقل کنی.</Txt>
+      <Txt big style={s.pageHeading}>فهرست خرید</Txt><Txt muted>اقلام را اضافه یا ویرایش کن؛ پس از خرید می‌توانی آن‌ها را به یخچال منتقل کنی.</Txt>
       <Panel><View style={s.spread}>
           <Txt weight>{editingShoppingId?'ویرایش قلم':'انتخاب اقلام خرید'}</Txt>
           <Btn secondary disabled={!!editingShoppingId} onPress={()=>{setBulkShopping(!bulkShopping);setSelectedShoppingIds([]);setShoppingPick('');}}>
@@ -476,7 +475,6 @@ function AppBody(){
           </Pressable>;
         })}</View>
         {bulkShopping?<><Txt muted>اقلام انتخابی با مقدار نامشخص به فهرست خرید اضافه می‌شوند.</Txt>
-          <Btn disabled={busy||selectedShoppingIds.length===0} onPress={saveBulkShopping}>افزودن گروهی {fmt(selectedShoppingIds.length)} قلم</Btn>
         </>:null}
         {!bulkShopping&&shoppingPick?<><Txt muted>ماده انتخاب‌شده: {BY_ID.get(shoppingPick)?.fa}</Txt>
           <TextInput value={shoppingAmount} onChangeText={setShoppingAmount} keyboardType="decimal-pad" style={s.input} textAlign="right" placeholder="مقدار (اختیاری)" placeholderTextColor={c.secondary}/>
@@ -493,7 +491,7 @@ function AppBody(){
       {!shopping.length?<Panel><Txt muted>فهرست خرید خالی است. از صفحه غذا مواد کمبود را اضافه کن.</Txt></Panel>:null}
     </>:null}
     {page==='settings'?<>
-      <Txt big>تنظیمات برنامه</Txt>
+      <Txt big style={s.pageHeading}>تنظیمات برنامه</Txt>
       <Panel><Txt weight>ظاهر برنامه</Txt>
         <Txt muted>رنگ‌بندی مناسب محیط را انتخاب کن.</Txt>
         <View style={s.wrap}>{([['system','هماهنگ با گوشی'],['light','روشن ☀'],['dark','تیره ☾']] as [db.UiThemeMode,string][]).map(([id,label])=>
@@ -518,6 +516,16 @@ function AppBody(){
     </>:null}
     <View style={{height:20}}/>
     </ScrollView>
+    {page==='tabs'&&tab==='pantry'&&bulkPantry?<View style={s.bulkActionBar}>
+      <View style={{flex:1}}><Txt weight>{fmt(selectedPantryIds.length)} ماده انتخاب شده</Txt>
+        <Txt muted style={{fontSize:11}}>ثبت با مقدار نامشخص؛ ویرایش بعداً ممکن است.</Txt></View>
+      <Btn disabled={busy||selectedPantryIds.length===0} onPress={saveBulkPantry}>ثبت {fmt(selectedPantryIds.length)} ماده</Btn>
+    </View>:null}
+    {page==='shopping'&&bulkShopping?<View style={s.bulkActionBar}>
+      <View style={{flex:1}}><Txt weight>{fmt(selectedShoppingIds.length)} قلم انتخاب شده</Txt>
+        <Txt muted style={{fontSize:11}}>موارد تکراری حفظ می‌شوند.</Txt></View>
+      <Btn disabled={busy||selectedShoppingIds.length===0} onPress={saveBulkShopping}>افزودن به خرید</Btn>
+    </View>:null}
     {page==='tabs'?menu():null}
     {tour()}
   </SafeAreaView>;
@@ -527,6 +535,9 @@ const createStyles=(c:Palette)=>StyleSheet.create({
   header:{paddingHorizontal:15,paddingVertical:9,borderBottomWidth:1,borderBottomColor:c.line,backgroundColor:c.surface,direction:'rtl'},
   backButton:{paddingHorizontal:13,paddingVertical:8,minHeight:45,justifyContent:'center',borderRadius:13,backgroundColor:c.pale},
   body:{paddingHorizontal:15,paddingTop:15,paddingBottom:42,gap:12,width:'100%',maxWidth:720,alignSelf:'center',direction:'rtl',alignItems:'stretch'},
+  pageHeading:{width:'100%',textAlign:'right'},
+  bulkActionBar:{flexDirection:'row',direction:'rtl',alignItems:'center',gap:12,
+    paddingVertical:9,paddingHorizontal:15,backgroundColor:c.surface,borderTopWidth:1,borderTopColor:c.line},
   hero:{backgroundColor:c.deep,borderRadius:24,padding:21,minHeight:188,gap:8,justifyContent:'center',overflow:'hidden',elevation:3},
   heroOrb:{position:'absolute',height:170,width:170,borderRadius:85,right:-50,top:-60,backgroundColor:'#2F624C'},
   heroOrbSmall:{position:'absolute',height:100,width:100,borderRadius:50,right:22,bottom:-67,backgroundColor:'#4A7754'},
